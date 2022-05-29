@@ -17,7 +17,7 @@ use bevy::render::{camera::PerspectiveProjection, pipeline::PipelineDescriptor};
 use bevy_egui::EguiPlugin;
 use miratope_core::file::FromFile;
 use no_cull_pipeline::PbrNoBackfaceBundle;
-use rand::prelude::*;
+use rand::prelude::*
 
 use ui::{
     camera::{CameraInputEvent, ProjectionType},

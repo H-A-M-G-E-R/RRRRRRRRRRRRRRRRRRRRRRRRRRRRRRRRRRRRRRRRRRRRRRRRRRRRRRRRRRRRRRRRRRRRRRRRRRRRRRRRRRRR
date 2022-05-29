@@ -17,6 +17,7 @@ use bevy::render::{camera::PerspectiveProjection, pipeline::PipelineDescriptor};
 use bevy_egui::EguiPlugin;
 use miratope_core::file::FromFile;
 use no_cull_pipeline::PbrNoBackfaceBundle;
+use rand::prelude::*;
 
 use ui::{
     camera::{CameraInputEvent, ProjectionType},
@@ -103,7 +104,7 @@ fn setup(
 
     // Mesh material.
     let mesh_material = materials.add(StandardMaterial {
-        base_color: Color::rgb_u8(255, 0, 255),
+        base_color: Color::rgb_u8(rng.gen_range(0..=255), rng.gen_range(0..=255), rng.gen_range(0..=255)),
         metallic: 1000000.0,
         ..Default::default()
     });

@@ -334,8 +334,10 @@ fn faceting_subdim(
         'b: loop {
             'c: loop {
                 if let Some(e_l) = edge_length {
-                    for v in &new_vertices {
+                    // WLOG checks if the vertices are all the right distance away from the first vertex.
+                    for (v_i, v) in new_vertices.iter().enumerate() {
                         if ((&points[*v].0-&points[rep[0]].0).norm() - e_l).abs() > f64::EPS {
+                            update = v_i;
                             break 'c;
                         }
                     }
@@ -864,12 +866,14 @@ impl Concrete {
             }
         }
 
+        println!("{} edge orbit{}", pair_orbits.len(), if pair_orbits.len() == 1 {""} else {"s"});
+
         // Enumerate hyperplanes
         let mut hyperplane_orbits = Vec::new();
         let mut checked = HashSet::new();
         let mut hyperplanes_vertices = Vec::new();
 
-        for pair_orbit in pair_orbits {
+        for pair_orbit in &pair_orbits {
             let rep = &pair_orbit[0];
 
             let mut new_vertices = vec![0; rank-3];
@@ -877,8 +881,10 @@ impl Concrete {
             'b: loop {
                 'c: loop {
                     if let Some(e_l) = edge_length {
-                        for v in &new_vertices {
+                        // WLOG checks if the vertices are all the right distance away from the first vertex.
+                        for (v_i, v) in new_vertices.iter().enumerate() {
                             if ((&vertices[*v]-&vertices[rep[0]]).norm() - e_l).abs() > f64::EPS {
+                                update = v_i;
                                 break 'c;
                             }
                         }
@@ -1020,7 +1026,7 @@ impl Concrete {
             ridges.push(ridges_row);
             ff_counts.push(ff_counts_row);
 
-            println!("{}: {} facets", idx, possible_facets_row.len());
+            println!("{}: {} facets, {} verts, {} copies", idx, possible_facets_row.len(), hp_v.len(), orbit.len());
         }
 
         println!("\nComputing ridges...");

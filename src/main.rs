@@ -99,7 +99,7 @@ fn setup(
     );
 
     // Wireframe material.
-    let wf_material = materials.set(WIREFRAME_UNSELECTED_MATERIAL, Color::rgb_u8(0, 0, 0).into());
+    let wf_material = materials.set(WIREFRAME_UNSELECTED_MATERIAL, Color::rgb_u8(150, 150, 150).into());
 
     // Mesh material.
     let mesh_material = materials.add(StandardMaterial {
@@ -149,7 +149,7 @@ fn setup(
             });
             // Light source
             cb.spawn_bundle(PointLightBundle {
-                transform: Transform::from_translation(Vec3::new(-50., 50., 50.)),
+                transform: Transform::from_translation(Vec3::new(-5., 5., 50.)),
                 point_light: PointLight {
                     intensity: 10000.,
                     range: 100.,

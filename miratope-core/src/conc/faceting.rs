@@ -1461,25 +1461,16 @@ impl Concrete {
                     println!("Faceting {}:{}{}", faceting_idx, facets_fmt, fissary_status);
 
                     if save {
-	            	if r {
-			    if fissary_status == "" {
-                                output.push((poly.clone(), Some(
-                                    if save_facets {
-                                        format!("faceting {} -{}{}", faceting_idx, facets_fmt, fissary_status)
-                                    } else {
-                                        format!("faceting {}{}", faceting_idx, fissary_status)
-                                    }
-				)));
-			    }
-		        } else {
-			    output.push((poly.clone(), Some(
-                                if save_facets {
-                                    format!("faceting {} -{}{}", faceting_idx, facets_fmt, fissary_status)
-                                } else {
-                                    format!("faceting {}{}", faceting_idx, fissary_status)
-			        }
-                            )));
+	            	if r && fissary_status != "" {
+			    break
 			}
+			output.push((poly.clone(), Some(
+                            if save_facets {
+                                format!("faceting {} -{}{}", faceting_idx, facets_fmt, fissary_status)
+                            } else {
+                                format!("faceting {}{}", faceting_idx, fissary_status)
+			    }
+                        )));
                     }
 
                     if save_facets {

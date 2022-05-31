@@ -5,12 +5,8 @@ members = ["miratope-core", "vec-like"]
 name = "miratope"
 description = "A polytope renderer and builder."
 license = "MIT"
-<<<<<<< HEAD
-version = "0.3.6"
-repository = "https://github.com/H-A-M-G-E-R/miratope-rs"
-=======
 version = "0.4.0"
->>>>>>> 10bcfb5 (Symmetry now works with hemi elements)
+repository = "https://github.com/H-A-M-G-E-R/miratope-rs"
 keywords = ["polytope", "dimension", "geometry"]
 authors = [
     "Violeta Hernández <vi.hdz.p@gmail.com>",

@@ -774,6 +774,7 @@ impl Concrete {
         save: bool,
         save_facets: bool,
         r: bool,
+	seperate_vertex_orbits: bool,
     ) -> Vec<(Concrete, Option<String>)> {
         let rank = self.rank();
 
@@ -852,6 +853,9 @@ impl Concrete {
                             continue
                         }
                     }
+		    if seperate_vertex_orbits && &orbit_of_vertex[vertex] != orbit {
+		        continue
+		    }
                     let mut new_orbit = Vec::new();
                     for row in &vertex_map {
                         let (c1, c2) = (row[rep], row[vertex]);

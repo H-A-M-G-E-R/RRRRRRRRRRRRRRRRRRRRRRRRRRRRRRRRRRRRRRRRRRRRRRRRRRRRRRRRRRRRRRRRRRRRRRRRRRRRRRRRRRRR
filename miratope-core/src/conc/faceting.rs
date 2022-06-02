@@ -1462,25 +1462,25 @@ impl Concrete {
 
                     if save {
 	            	if r {
-			    if fissary_status == "" {
-			        output.push((poly.clone(), Some(
+		            if fissary_status == "" {
+                                output.push((poly.clone(), Some(
                                     if save_facets {
                                         format!("faceting {} -{}{}", faceting_idx, facets_fmt, fissary_status)
                                     } else {
                                         format!("faceting {}{}", faceting_idx, fissary_status)
 			            }
                                 )));
-			    }
-			} else {
-			    output.push((poly.clone(), Some(
+                            }
+                        } else {
+                            output.push((poly.clone(), Some(
                                 if save_facets {
                                     format!("faceting {} -{}{}", faceting_idx, facets_fmt, fissary_status)
                                 } else {
                                     format!("faceting {}{}", faceting_idx, fissary_status)
-			        }
+                                }
                             )));
                         }
-		    }
+                    }
                     if save_facets {
                         for (orbit, idx) in used_facets_current {
                             used_facets.insert(orbit, poly.facet(idx).unwrap());

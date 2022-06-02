@@ -1480,7 +1480,7 @@ impl Concrete {
 			        }
                             )));
                         }
-
+		    }
                     if save_facets {
                         for (orbit, idx) in used_facets_current {
                             used_facets.insert(orbit, poly.facet(idx).unwrap());

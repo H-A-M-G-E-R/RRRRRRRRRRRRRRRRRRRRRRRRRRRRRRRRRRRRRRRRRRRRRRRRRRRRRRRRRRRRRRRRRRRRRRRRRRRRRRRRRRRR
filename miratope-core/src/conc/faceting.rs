@@ -889,6 +889,15 @@ impl Concrete {
                             }
                         }
                     }
+
+                    if seperate_vertex_orbits {
+                        // Checks if the vertices and the first vertex share an orbit.
+                        for v in &new_vertices {
+                            if (orbit_of_vertex[*v] != orbit_of_vertex[rep[0]]) {
+                                break 'c;
+                            }
+                        }
+                    }
                     // We start with a pair and add enough vertices to define a hyperplane.
                     let mut tuple = rep.clone();
                     tuple.append(&mut new_vertices.clone());

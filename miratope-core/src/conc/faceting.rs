@@ -852,6 +852,12 @@ impl Concrete {
                             continue
                         }
                     }
+
+		            let oov = orbit_of_vertex[vertex]
+		            if seperate_vertex_orbits && oov as usize != orbit {
+		                continue
+		            }
+                    
                     let mut new_orbit = Vec::new();
                     for row in &vertex_map {
                         let (c1, c2) = (row[rep], row[vertex]);

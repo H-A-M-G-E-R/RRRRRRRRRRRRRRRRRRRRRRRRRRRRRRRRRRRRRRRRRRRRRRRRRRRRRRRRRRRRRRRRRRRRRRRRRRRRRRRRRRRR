@@ -774,7 +774,6 @@ impl Concrete {
         save: bool,
         save_facets: bool,
         r: bool,
-        seperate_vertex_orbits: bool,
     ) -> Vec<(Concrete, Option<String>)> {
         let rank = self.rank();
 
@@ -853,12 +852,6 @@ impl Concrete {
                             continue
                         }
                     }
-
-                    let oov = orbit_of_vertex[vertex];
-                    if seperate_vertex_orbits && oov != orbit_of_vertex[orbit[0]] {
-                        continue
-                    }
-                    
                     let mut new_orbit = Vec::new();
                     for row in &vertex_map {
                         let (c1, c2) = (row[rep], row[vertex]);
@@ -892,15 +885,6 @@ impl Concrete {
                         for (v_i, v) in new_vertices.iter().enumerate() {
                             if ((&vertices[*v]-&vertices[rep[0]]).norm() - e_l).abs() > f64::EPS {
                                 update = v_i;
-                                break 'c;
-                            }
-                        }
-                    }
-
-                    if seperate_vertex_orbits {
-                        // Checks if the vertices and the first vertex share an orbit.
-                        for v in &new_vertices {
-                            if &orbit_of_vertex[*v] != &orbit_of_vertex[rep[0]] {
                                 break 'c;
                             }
                         }

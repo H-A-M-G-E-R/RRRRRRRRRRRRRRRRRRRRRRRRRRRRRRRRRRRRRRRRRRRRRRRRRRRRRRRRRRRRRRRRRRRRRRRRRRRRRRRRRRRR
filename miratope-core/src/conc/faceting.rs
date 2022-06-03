@@ -774,6 +774,7 @@ impl Concrete {
         save: bool,
         save_facets: bool,
         r: bool,
+        seperate_vertex_orbits: bool,
     ) -> Vec<(Concrete, Option<String>)> {
         let rank = self.rank();
 

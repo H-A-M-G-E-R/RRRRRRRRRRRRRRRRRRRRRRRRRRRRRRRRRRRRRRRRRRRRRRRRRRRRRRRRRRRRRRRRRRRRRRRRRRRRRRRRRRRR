@@ -6,6 +6,7 @@ use std::{collections::{HashMap, HashSet}, fmt::Display, io::Error as IoError, p
 use crate::{
     abs::{AbstractBuilder, Ranked, SubelementList, Subelements},
     conc::{cycle::CycleList, Concrete},
+    float::Float,
     geometry::Point,
     Polytope, COMPONENTS, ELEMENT_NAMES,
 };

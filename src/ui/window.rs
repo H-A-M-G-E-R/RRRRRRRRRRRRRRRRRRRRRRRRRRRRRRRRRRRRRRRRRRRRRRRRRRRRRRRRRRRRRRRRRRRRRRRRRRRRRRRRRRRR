@@ -1318,9 +1318,6 @@ pub struct FacetingSettings {
     pub save_facets: bool,
     
     pub r: bool,
-    
-    /// Whether to only keep facetings with only one orbit.
-    pub seperate_vertex_orbits: bool,
 }
 
 impl Default for FacetingSettings {
@@ -1337,7 +1334,6 @@ impl Default for FacetingSettings {
             save: true,
             save_facets: false,
             r: false,
-            seperate_vertex_orbits: false,
         }
     }
 }
@@ -1469,10 +1465,6 @@ impl MemoryWindow for FacetingSettings {
         
         ui.add(
             egui::Checkbox::new(&mut self.r, "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR")
-        );
-        
-        ui.add(
-            egui::Checkbox::new(&mut self.seperate_vertex_orbits, "Seperate vertex orbits")
         );
     }
 }

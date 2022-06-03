@@ -854,10 +854,10 @@ impl Concrete {
                         }
                     }
 
-		            let oov = orbit_of_vertex[vertex]
-		            if seperate_vertex_orbits && oov as usize != orbit {
-		                continue
-		            }
+                    let oov = orbit_of_vertex[vertex];
+                    if seperate_vertex_orbits && oov != orbit_of_vertex[orbit[0]] {
+                        continue
+                    }
                     
                     let mut new_orbit = Vec::new();
                     for row in &vertex_map {

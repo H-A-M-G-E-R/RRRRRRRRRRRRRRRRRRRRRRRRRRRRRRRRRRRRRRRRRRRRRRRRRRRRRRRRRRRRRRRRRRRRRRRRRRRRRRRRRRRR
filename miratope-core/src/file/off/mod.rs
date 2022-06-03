@@ -719,7 +719,7 @@ impl<'a> OffWriter<'a> {
         for v in &self.poly.vertices {
             for c in v {
                 // Preventing generation loss
-                if c > &-0.0000000000000001_f64 && c < &0.0000000000000001_f64 {
+                if c.abs() < f64::EPS {
                     self.push_to_str('0');
                 } else {
                     self.push_to_str(c);

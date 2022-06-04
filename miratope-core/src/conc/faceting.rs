@@ -846,7 +846,7 @@ impl Concrete {
         }
         if let Some(orb) = kept_vertex_orbit {
             vertices = whole_orbits[orb];
-            vertex_orbits = vec![vertices];
+            vertex_orbits = vec![vertex_orbits[0]];
             orbit_of_vertex = vec![0; vertices.len()];
         }
 

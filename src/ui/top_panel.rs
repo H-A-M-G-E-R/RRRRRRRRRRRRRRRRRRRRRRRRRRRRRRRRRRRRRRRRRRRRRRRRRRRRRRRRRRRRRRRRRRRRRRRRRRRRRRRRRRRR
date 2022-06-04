@@ -773,7 +773,7 @@ pub fn show_top_panel(
                             if faceting_settings.unit_edges {Some(1.0)} else {None}, 
                             if faceting_settings.max_facet_types == 0 {None} else {Some(faceting_settings.max_facet_types)},
                             if faceting_settings.max_per_hyperplane == 0 {None} else {Some(faceting_settings.max_per_hyperplane)},
-			    if faceting_settings.kept_vertex_orbit == -1 {None} else {Some(faceting_settings.kept_vertex_orbit)},
+			    if faceting_settings.kept_vertex_orbit == -1 {None} else {Some(faceting_settings.kept_vertex_orbit as usize)},
                             faceting_settings.compounds,
                             faceting_settings.mark_fissary,
                             faceting_settings.save,

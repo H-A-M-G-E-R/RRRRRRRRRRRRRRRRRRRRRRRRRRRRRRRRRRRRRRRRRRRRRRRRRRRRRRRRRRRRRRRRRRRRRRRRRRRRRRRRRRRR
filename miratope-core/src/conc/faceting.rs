@@ -769,7 +769,6 @@ impl Concrete {
         edge_length: Option<f64>,
         noble: Option<usize>,
         max_per_hyperplane: Option<usize>,
-        kept_vertex_orbit: Option<usize>,
         include_compounds: bool,
         mark_fissary: bool,
         save: bool,
@@ -821,11 +820,6 @@ impl Concrete {
         let mut orbit_idx = 0;
         for v in 0..vertices.len() {
             if !checked_vertices[v] {
-                if let Some(orb) = kept_vertex_orbit {
-                    if orbit_idx != orb {
-                        continue;
-		    }
-		}
                 // We found a new orbit of vertices.
                 let mut new_orbit = Vec::new();
                 for row in &vertex_map {
@@ -840,11 +834,6 @@ impl Concrete {
                 vertex_orbits.push(new_orbit);
                 orbit_idx += 1;
             }
-        }
-        if let Some(orb) = kept_vertex_orbit {
-            vertices = vertex_orbits[orb];
-            vertex_orbits = vec![vertices];
-            orbit_of_vertex = vec![0; vertices.len()];
         }
 
         println!("{} vertices in {} orbit{}", vertices.len(), orbit_idx, if orbit_idx == 1 {""} else {"s"});

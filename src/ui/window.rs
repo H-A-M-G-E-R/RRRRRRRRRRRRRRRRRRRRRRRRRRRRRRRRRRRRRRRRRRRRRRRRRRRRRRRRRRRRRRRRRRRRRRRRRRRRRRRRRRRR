@@ -1298,9 +1298,6 @@ pub struct FacetingSettings {
 
     /// The maximum number of facets generated in each hyperplane, to prevent combinatorial explosion. 0 for no limit.
     pub max_per_hyperplane: usize,
-    
-    /// The vertex orbit that is kept. -1 for all orbits
-    pub kept_vertex_orbit: isize,
 
     /// Where to get the symmetry group from.
     pub group: GroupEnum2,
@@ -1330,7 +1327,6 @@ impl Default for FacetingSettings {
             slot: Slot::default(),
             max_facet_types: 0,
             max_per_hyperplane: 0,
-            kept_vertex_orbit: -1,
             group: GroupEnum2::Chiral(false),
             unit_edges: true,
             compounds: false,
@@ -1373,14 +1369,6 @@ impl MemoryWindow for FacetingSettings {
                 egui::DragValue::new(&mut self.max_per_hyperplane)
                     .speed(200)
                     .clamp_range(0..=usize::MAX)
-            );
-        });
-        ui.horizontal(|ui| {
-            ui.label("Kept vertex orbit");
-            ui.add(
-                egui::DragValue::new(&mut self.kept_vertex_orbit)
-                    .speed(0.02)
-                    .clamp_range(-1..=isize::MAX)
             );
         });
         ui.separator();

@@ -813,7 +813,7 @@ impl Concrete {
         println!("\nMatching vertices...");
 
         // Checking every r-tuple of vertices would take too long, so we put pairs into orbits first to reduce the number.
-        let mut whole_orbits = Vec::new();
+        // I don't think we need to store the whole orbits at this point, but they might be useful if we want to improve the algorithm.
         let mut vertex_orbits = Vec::new(); // Vec of orbits which are vecs of vertices.
         let mut orbit_of_vertex = vec![0; vertices.len()]; // For each vertex stores its orbit index.
         let mut checked_vertices = vec![false; vertices.len()]; // Stores whether we've already checked the vertex.
@@ -828,24 +828,21 @@ impl Concrete {
 		}
                 // We found a new orbit of vertices.
                 let mut new_orbit = Vec::new();
-                let mut whole_new_orbit = Vec::new();
                 for row in &vertex_map {
                     // Find all vertices in the same orbit.
                     let c = row[v];
                     if !checked_vertices[c] {
                         new_orbit.push(c);
-                        whole_new_orbit.push(vertices[c]);
                         checked_vertices[c] = true;
                         orbit_of_vertex[c] = orbit_idx;
                     }
                 }
                 vertex_orbits.push(new_orbit);
-                whole_orbits.push(whole_new_orbit);
                 orbit_idx += 1;
             }
         }
         if let Some(orb) = kept_vertex_orbit {
-            vertices = whole_orbits[orb];
+            vertices = vertex_orbits[orb];
             vertex_orbits = vec![vertices];
             orbit_of_vertex = vec![0; vertices.len()];
         }

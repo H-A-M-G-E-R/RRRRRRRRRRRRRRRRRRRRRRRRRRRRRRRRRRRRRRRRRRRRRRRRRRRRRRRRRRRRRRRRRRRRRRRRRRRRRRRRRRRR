@@ -1334,7 +1334,7 @@ impl Default for FacetingSettings {
             group: GroupEnum2::Chiral(false),
             unit_edges: true,
             compounds: false,
-            mark_fissary: true,
+            mark_fissary: false,
             save: true,
             save_facets: false,
             r: false,

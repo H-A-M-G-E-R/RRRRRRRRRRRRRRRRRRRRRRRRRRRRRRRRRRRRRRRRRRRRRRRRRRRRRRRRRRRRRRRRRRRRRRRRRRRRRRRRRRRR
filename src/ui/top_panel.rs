@@ -778,7 +778,7 @@ pub fn show_top_panel(
                             faceting_settings.save,
                             faceting_settings.save_facets,
 			    faceting_settings.r,
-                            faceting_settings.exotic
+                            faceting_settings.exotics
                         );
                         for faceting in facetings {
                             memory.push(faceting);

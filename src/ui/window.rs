@@ -1318,10 +1318,6 @@ pub struct FacetingSettings {
     pub save_facets: bool,
     
     pub r: bool,
-    
-    /// Whether to include exotics and coincidics.
-    
-    pub exotics: bool,
 }
 
 impl Default for FacetingSettings {
@@ -1338,7 +1334,6 @@ impl Default for FacetingSettings {
             save: true,
             save_facets: false,
             r: false,
-            exotics: true,
         }
     }
 }
@@ -1470,10 +1465,6 @@ impl MemoryWindow for FacetingSettings {
         
         ui.add(
             egui::Checkbox::new(&mut self.r, "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR")
-        );
-        
-        ui.add(
-            egui::Checkbox::new(&mut self.exotics, "Include exotics/coincidics")
         );
     }
 }

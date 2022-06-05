@@ -774,7 +774,6 @@ impl Concrete {
         save: bool,
         save_facets: bool,
         r: bool,
-        exotics: bool,
     ) -> Vec<(Concrete, Option<String>)> {
         let rank = self.rank();
 
@@ -1158,11 +1157,7 @@ impl Concrete {
             let mut valid = 0; // 0: valid, 1: exotic, 2: incomplete
             for r in ridges {
                 if r > 2 {
-                    if exotics {
-                        valid = 0;
-                    } else {
-                        valid = 1;
-                    }
+                    valid = 1;
                     break
                 }
                 if r == 1 {

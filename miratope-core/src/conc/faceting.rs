@@ -1158,9 +1158,7 @@ impl Concrete {
             let mut valid = 0; // 0: valid, 1: exotic, 2: incomplete
             for r in ridges {
                 if r > 2 {
-                    if exotics && r % 2 == 0 {
-                        valid = 0;
-                    } else {
+                    if !(exotics && (r % 2 == 0)) {
                         valid = 1;
                         break
                     }

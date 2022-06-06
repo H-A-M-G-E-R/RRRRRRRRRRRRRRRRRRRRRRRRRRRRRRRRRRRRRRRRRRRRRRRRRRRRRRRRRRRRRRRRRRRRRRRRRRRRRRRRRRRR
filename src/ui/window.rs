@@ -1299,6 +1299,9 @@ pub struct FacetingSettings {
     /// The maximum number of facets generated in each hyperplane, to prevent combinatorial explosion. 0 for no limit.
     pub max_per_hyperplane: usize,
 
+    /// The maximum number of vertices per hyperplane. 0 for no limit.
+    pub max_vertices_per_hyperplane: usize,
+
     /// Where to get the symmetry group from.
     pub group: GroupEnum2,
 
@@ -1327,6 +1330,7 @@ impl Default for FacetingSettings {
             slot: Slot::default(),
             max_facet_types: 0,
             max_per_hyperplane: 0,
+            max_vertices_per_hyperplane: 0,
             group: GroupEnum2::Chiral(false),
             unit_edges: true,
             compounds: false,
@@ -1368,6 +1372,14 @@ impl MemoryWindow for FacetingSettings {
             ui.add(
                 egui::DragValue::new(&mut self.max_per_hyperplane)
                     .speed(200)
+                    .clamp_range(0..=usize::MAX)
+            );
+        });
+        ui.horizontal(|ui| {
+            ui.label("Max vertices per hyperplane");
+            ui.add(
+                egui::DragValue::new(&mut self.max_vertices_per_hyperplane)
+                    .speed(0.02)
                     .clamp_range(0..=usize::MAX)
             );
         });

@@ -769,6 +769,7 @@ impl Concrete {
         edge_length: Option<f64>,
         noble: Option<usize>,
         max_per_hyperplane: Option<usize>,
+        max_vertices_per_hyperplane: Option<usize>,
         include_compounds: bool,
         mark_fissary: bool,
         save: bool,
@@ -904,6 +905,11 @@ impl Concrete {
                         for (idx, v) in vertices.iter().enumerate() {
                             if hyperplane.distance(&v) < f64::EPS {
                                 hyperplane_vertices.push(idx);
+                            }
+                        }
+                        if let Some(v_h) = max_vertices_per_hyperplane {
+                            if hyperplane_vertices.len() > v_h {
+                                break 'c;
                             }
                         }
                         hyperplane_vertices.sort_unstable();

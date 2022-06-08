@@ -1302,11 +1302,13 @@ pub struct FacetingSettings {
     /// The maximum number of vertices per hyperplane. 0 for no limit.
     pub max_vertices_per_hyperplane: usize,
 
+    /// Edge length of facetings.
+    pub edge_length: f64,
+
+    pub graze: f64,
+
     /// Where to get the symmetry group from.
     pub group: GroupEnum2,
-
-    /// Whether to use unit edges only (superregiment).
-    pub unit_edges: bool,
 
     /// Whether to include trivial compounds (compounds of other full-symmetric facetings).
     pub compounds: bool,
@@ -1331,8 +1333,9 @@ impl Default for FacetingSettings {
             max_facet_types: 0,
             max_per_hyperplane: 0,
             max_vertices_per_hyperplane: 0,
+            edge_length: 1.0,
+            graze: 0.0,
             group: GroupEnum2::Chiral(false),
-            unit_edges: true,
             compounds: false,
             mark_fissary: true,
             save: true,
@@ -1381,6 +1384,20 @@ impl MemoryWindow for FacetingSettings {
                 egui::DragValue::new(&mut self.max_vertices_per_hyperplane)
                     .speed(0.02)
                     .clamp_range(0..=usize::MAX)
+            );
+        });
+        ui.horizontal(|ui| {
+            ui.label("Edge length");
+            ui.add(
+                egui::DragValue::new(&mut self.edge_length)
+                    .speed(0.01)
+            );
+        });
+        ui.horizontal(|ui| {
+            ui.label("graze");
+            ui.add(
+                egui::DragValue::new(&mut self.graze)
+                    .speed(0.01)
             );
         });
         ui.separator();
@@ -1454,10 +1471,6 @@ impl MemoryWindow for FacetingSettings {
         });
 
         ui.separator();
-
-        ui.add(
-            egui::Checkbox::new(&mut self.unit_edges, "Unit edges only")
-        );
 
         ui.add(
             egui::Checkbox::new(&mut self.compounds, "Include trivial compounds")

@@ -195,7 +195,8 @@ fn faceting_subdim(
     points: Vec<PointOrd<f64>>,
     vertex_map: Vec<Vec<usize>>,
     edge_length: Option<f64>,
-    max_per_hyperplane: Option<usize>
+    max_per_hyperplane: Option<usize>,
+    graze: f64
 ) ->
     (Vec<(Ranks, Vec<(usize, usize)>)>, // Vec of facetings, along with the facet types of each of them
     Vec<usize>, // Counts of each hyperplane orbit
@@ -300,7 +301,7 @@ fn faceting_subdim(
         for vertex in 0..total_vert_count {
             if vertex != rep && !checked[rep][vertex] {
                 if let Some(e_l) = edge_length {
-                    if ((&points[vertex].0-&points[rep].0).norm() - e_l).abs() > f64::EPS {
+                    if ((&points[vertex].0-&points[rep].0).norm() - e_l).abs() > graze + f64::EPS {
                         continue
                     }
                 }
@@ -336,7 +337,7 @@ fn faceting_subdim(
                 if let Some(e_l) = edge_length {
                     // WLOG checks if the vertices are all the right distance away from the first vertex.
                     for (v_i, v) in new_vertices.iter().enumerate() {
-                        if ((&points[*v].0-&points[rep[0]].0).norm() - e_l).abs() > f64::EPS {
+                        if ((&points[*v].0-&points[rep[0]].0).norm() - e_l).abs() > graze + f64::EPS {
                             update = v_i;
                             break 'c;
                         }
@@ -456,7 +457,7 @@ fn faceting_subdim(
         }
 
         let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), edge_length, max_per_hyperplane);
+            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), edge_length, max_per_hyperplane, graze);
 
         let mut possible_facets_global_row = Vec::new();
         for f in &possible_facets_row {
@@ -770,6 +771,7 @@ impl Concrete {
         noble: Option<usize>,
         max_per_hyperplane: Option<usize>,
         max_vertices_per_hyperplane: Option<usize>,
+        graze: f64,
         include_compounds: bool,
         mark_fissary: bool,
         save: bool,
@@ -849,7 +851,7 @@ impl Concrete {
             for vertex in 0..vertices.len() {
                 if vertex != rep && !checked[rep][vertex] {
                     if let Some(e_l) = edge_length {
-                        if ((&vertices[vertex]-&vertices[rep]).norm() - e_l).abs() > f64::EPS {
+                        if ((&vertices[vertex]-&vertices[rep]).norm() - e_l).abs() > graze + f64::EPS {
                             continue
                         }
                     }
@@ -884,7 +886,7 @@ impl Concrete {
                     if let Some(e_l) = edge_length {
                         // WLOG checks if the vertices are all the right distance away from the first vertex.
                         for (v_i, v) in new_vertices.iter().enumerate() {
-                            if ((&vertices[*v]-&vertices[rep[0]]).norm() - e_l).abs() > f64::EPS {
+                            if ((&vertices[*v]-&vertices[rep[0]]).norm() - e_l).abs() > graze + f64::EPS {
                                 update = v_i;
                                 break 'c;
                             }
@@ -1008,7 +1010,7 @@ impl Concrete {
             }
 
             let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-                faceting_subdim(rank-1, hp, points, new_stabilizer, edge_length, max_per_hyperplane);
+                faceting_subdim(rank-1, hp, points, new_stabilizer, edge_length, max_per_hyperplane, graze);
 
             let mut possible_facets_global_row = Vec::new();
             for f in &possible_facets_row {

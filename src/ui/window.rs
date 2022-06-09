@@ -1307,6 +1307,9 @@ pub struct FacetingSettings {
 
     pub graze: f64,
 
+    /// The maximum inradius. 0 for no limit.
+    pub max_inradius: f64,
+
     /// Where to get the symmetry group from.
     pub group: GroupEnum2,
 
@@ -1335,6 +1338,7 @@ impl Default for FacetingSettings {
             max_vertices_per_hyperplane: 0,
             edge_length: 1.0,
             graze: 0.0,
+            max_inradius: 0.0,
             group: GroupEnum2::Chiral(false),
             compounds: false,
             mark_fissary: true,
@@ -1397,6 +1401,13 @@ impl MemoryWindow for FacetingSettings {
             ui.label("graze");
             ui.add(
                 egui::DragValue::new(&mut self.graze)
+                    .speed(0.01)
+            );
+        });
+        ui.horizontal(|ui| {
+            ui.label("Max inradius");
+            ui.add(
+                egui::DragValue::new(&mut self.max_inradius)
                     .speed(0.01)
             );
         });

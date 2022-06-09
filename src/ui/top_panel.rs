@@ -775,6 +775,7 @@ pub fn show_top_panel(
                             if faceting_settings.max_per_hyperplane == 0 {None} else {Some(faceting_settings.max_per_hyperplane)},
                             if faceting_settings.max_vertices_per_hyperplane == 0 {None} else {Some(faceting_settings.max_vertices_per_hyperplane)},
                             faceting_settings.graze,
+                            if faceting_settings.max_inradius == 0.0 {None} else {Some(faceting_settings.max_inradius)},
                             faceting_settings.compounds,
                             faceting_settings.mark_fissary,
                             faceting_settings.save,

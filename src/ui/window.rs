@@ -1441,7 +1441,7 @@ impl MemoryWindow for FacetingSettings {
         ui.separator();
 
         ui.add(
-            egui::Checkbox::new(&mut self.unit_edges, "Unit edges only")
+            egui::Checkbox::new(&mut self.unit_edges, "bihdi")
         );
 
         ui.add(

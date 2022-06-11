@@ -1310,9 +1310,6 @@ pub struct FacetingSettings {
     /// The maximum inradius. 0 for no limit.
     pub max_inradius: f64,
 
-    // The kept vertex orbit. -1 for all orbits.
-    pub kept_vertex_orbit: isize,
-
     /// Where to get the symmetry group from.
     pub group: GroupEnum2,
 
@@ -1342,7 +1339,6 @@ impl Default for FacetingSettings {
             edge_length: 1.0,
             graze: 0.0,
             max_inradius: 0.0,
-            kept_vertex_orbit: -1,
             group: GroupEnum2::Chiral(false),
             compounds: false,
             mark_fissary: true,
@@ -1399,7 +1395,6 @@ impl MemoryWindow for FacetingSettings {
             ui.add(
                 egui::DragValue::new(&mut self.edge_length)
                     .speed(0.01)
-                    .clamp_range(0.0..=Float::MAX)
             );
         });
         ui.horizontal(|ui| {
@@ -1407,7 +1402,6 @@ impl MemoryWindow for FacetingSettings {
             ui.add(
                 egui::DragValue::new(&mut self.graze)
                     .speed(0.01)
-                    .clamp_range(0.0..=Float::MAX)
             );
         });
         ui.horizontal(|ui| {
@@ -1415,15 +1409,6 @@ impl MemoryWindow for FacetingSettings {
             ui.add(
                 egui::DragValue::new(&mut self.max_inradius)
                     .speed(0.01)
-                    .clamp_range(0.0..=Float::MAX)
-            );
-        });
-        ui.horizontal(|ui| {
-            ui.label("Kept vertex orbit");
-            ui.add(
-                egui::DragValue::new(&mut self.kept_vertex_orbit)
-                    .speed(0.02)
-                    .clamp_range(-1..=isize::MAX)
             );
         });
         ui.separator();

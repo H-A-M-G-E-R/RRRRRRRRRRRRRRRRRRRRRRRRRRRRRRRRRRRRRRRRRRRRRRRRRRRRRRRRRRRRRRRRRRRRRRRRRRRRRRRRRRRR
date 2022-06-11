@@ -773,6 +773,7 @@ impl Concrete {
         max_vertices_per_hyperplane: Option<usize>,
         graze: f64,
         max_inradius: Option<f64>,
+        kept_vertex_orbit: Option<isize>,
         include_compounds: bool,
         mark_fissary: bool,
         save: bool,
@@ -850,6 +851,11 @@ impl Concrete {
         for orbit in vertex_orbits {
             let rep = orbit[0]; // We only need one representative per orbit.
             for vertex in 0..vertices.len() {
+                if let Some(k_v_o) = kept_vertex_orbit {
+                    if orbit_of_vertex[vertex] != k_v_o as usize {
+                        continue
+                    }
+                }
                 if vertex != rep && !checked[rep][vertex] {
                     if let Some(e_l) = edge_length {
                         if ((&vertices[vertex]-&vertices[rep]).norm() - e_l).abs() > graze + f64::EPS {
@@ -893,6 +899,16 @@ impl Concrete {
                             }
                         }
                     }
+
+                    if let Some(k_v_o) = kept_vertex_orbit {
+                        // Checks if the vertices' orbits match.
+                        for (v_i, v) in new_vertices.iter().enumerate() {
+                            if orbit_of_vertex[*v] != k_v_o as usize {
+                                update = v_i;
+                                break 'c;
+                            }
+                        }
+                    }
                     // We start with a pair and add enough vertices to define a hyperplane.
                     let mut tuple = rep.clone();
                     tuple.append(&mut new_vertices.clone());
@@ -912,6 +928,11 @@ impl Concrete {
                         let mut hyperplane_vertices = Vec::new();
                         for (idx, v) in vertices.iter().enumerate() {
                             if hyperplane.distance(&v) < f64::EPS {
+                                if let Some(k_v_o) = kept_vertex_orbit {
+                                    if orbit_of_vertex[idx] != k_v_o as usize {
+                                        continue
+                                    } 
+                                }
                                 hyperplane_vertices.push(idx);
                                 if let Some(v_h) = max_vertices_per_hyperplane {
                                     if hyperplane_vertices.len() > v_h {

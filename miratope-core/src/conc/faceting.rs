@@ -772,7 +772,6 @@ impl Concrete {
         max_per_hyperplane: Option<usize>,
         max_vertices_per_hyperplane: Option<usize>,
         graze: f64,
-        max_inradius: Option<f64>,
         kept_vertex_orbit: Option<isize>,
         include_compounds: bool,
         mark_fissary: bool,
@@ -920,11 +919,6 @@ impl Concrete {
 
                     let hyperplane = Subspace::from_points(points.iter());
                     if hyperplane.is_hyperplane() {
-                        if let Some(m_ir) = max_inradius {
-                            if hyperplane.distance(&Point::zeros(rank-1)) > m_ir + f64::EPS {
-                                break 'c;
-                            }
-                        }
                         let mut hyperplane_vertices = Vec::new();
                         for (idx, v) in vertices.iter().enumerate() {
                             if hyperplane.distance(&v) < f64::EPS {
@@ -934,11 +928,11 @@ impl Concrete {
                                     } 
                                 }
                                 hyperplane_vertices.push(idx);
-                                if let Some(v_h) = max_vertices_per_hyperplane {
-                                    if hyperplane_vertices.len() > v_h {
-                                        break 'c;
-                                    }
-                                }
+                            }
+                        }
+                        if let Some(v_h) = max_vertices_per_hyperplane {
+                            if hyperplane_vertices.len() > v_h {
+                                break 'c;
                             }
                         }
                         hyperplane_vertices.sort_unstable();

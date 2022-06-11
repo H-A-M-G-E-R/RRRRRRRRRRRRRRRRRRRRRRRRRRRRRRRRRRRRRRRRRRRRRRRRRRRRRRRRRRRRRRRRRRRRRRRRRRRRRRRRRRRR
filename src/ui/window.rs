@@ -1313,6 +1313,15 @@ pub struct FacetingSettings {
     /// Where to get the symmetry group from.
     pub group: GroupEnum2,
 
+    /// Whether to use a maximum inradius.
+    pub do_inradius: bool,
+
+    /// The maximum inradius.
+    pub inradius: f64,
+
+    /// Whether to exclude planes passing through the origin.
+    pub exclude_hemis: bool,
+
     /// Whether to include trivial compounds (compounds of other full-symmetric facetings).
     pub compounds: bool,
 
@@ -1340,6 +1349,9 @@ impl Default for FacetingSettings {
             graze: 0.0,
             kept_vertex_orbit: -1,
             group: GroupEnum2::Chiral(false),
+            do_inradius: false,
+            inradius: 1.,
+            exclude_hemis: false,
             compounds: false,
             mark_fissary: true,
             save: true,
@@ -1485,6 +1497,20 @@ impl MemoryWindow for FacetingSettings {
         });
 
         ui.separator();
+
+        ui.horizontal(|ui| {
+            ui.add(
+                egui::Checkbox::new(&mut self.do_inradius, "")
+            );
+            ui.add(
+                egui::DragValue::new(&mut self.inradius).clamp_range(0.0..=Float::MAX).speed(0.004)
+            );
+            ui.label("Max inradius");
+        });
+
+        ui.add(
+            egui::Checkbox::new(&mut self.exclude_hemis, "Exclude hemis")
+        );
 
         ui.add(
             egui::Checkbox::new(&mut self.compounds, "Include trivial compounds")

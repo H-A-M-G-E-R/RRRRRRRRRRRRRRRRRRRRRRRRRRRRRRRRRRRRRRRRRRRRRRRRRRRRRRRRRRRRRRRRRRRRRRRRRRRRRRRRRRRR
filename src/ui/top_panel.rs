@@ -771,6 +771,8 @@ pub fn show_top_panel(
                                 GroupEnum2::FromSlot(_) => GroupEnum::VertexMap(vertices_thing.1)
                             },
                             if faceting_settings.edge_length == 0.0 {None} else {Some(faceting_settings.edge_length)}, 
+                            if faceting_settings.do_inradius {Some(faceting_settings.inradius)} else {None},
+                            faceting_settings.exclude_hemis,
                             if faceting_settings.max_facet_types == 0 {None} else {Some(faceting_settings.max_facet_types)},
                             if faceting_settings.max_per_hyperplane == 0 {None} else {Some(faceting_settings.max_per_hyperplane)},
                             if faceting_settings.max_vertices_per_hyperplane == 0 {None} else {Some(faceting_settings.max_vertices_per_hyperplane)},

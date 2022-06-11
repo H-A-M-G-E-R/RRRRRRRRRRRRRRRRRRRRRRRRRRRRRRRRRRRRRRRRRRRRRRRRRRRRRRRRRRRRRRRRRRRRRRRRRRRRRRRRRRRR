@@ -1305,6 +1305,8 @@ pub struct FacetingSettings {
     /// Whether to use unit edges only (superregiment).
     pub unit_edges: bool,
 
+    pub bhirgogishi: f64,
+
     /// Whether to include trivial compounds (compounds of other full-symmetric facetings).
     pub compounds: bool,
 
@@ -1327,6 +1329,7 @@ impl Default for FacetingSettings {
             max_per_hyperplane: 0,
             group: GroupEnum2::Chiral(false),
             unit_edges: true,
+            bhirgogishi: 0.0,
             compounds: false,
             mark_fissary: true,
             save: true,
@@ -1366,6 +1369,14 @@ impl MemoryWindow for FacetingSettings {
                 egui::DragValue::new(&mut self.max_per_hyperplane)
                     .speed(200)
                     .clamp_range(0..=usize::MAX)
+            );
+        });
+        ui.horizontal(|ui| {
+            ui.label("fESWDfeDW");
+            ui.add(
+                egui::DragValue::new(&mut self.bhirgogishi)
+                    .speed(0.01)
+                    .clamp_range(0.0..=Float::MAX),
             );
         });
         ui.separator();
@@ -1441,7 +1452,7 @@ impl MemoryWindow for FacetingSettings {
         ui.separator();
 
         ui.add(
-            egui::Checkbox::new(&mut self.unit_edges, "bihdi")
+            egui::Checkbox::new(&mut self.unit_edges, "Unit edges only")
         );
 
         ui.add(

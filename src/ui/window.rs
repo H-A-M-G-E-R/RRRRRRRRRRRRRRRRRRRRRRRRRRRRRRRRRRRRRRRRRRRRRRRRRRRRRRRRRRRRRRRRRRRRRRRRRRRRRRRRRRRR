@@ -1504,6 +1504,8 @@ pub struct FacetingSettings {
     pub save_facets: bool,
     
     pub r: bool,
+
+    pub grid_semiuniform: bool,
 }
 
 impl Default for FacetingSettings {
@@ -1526,6 +1528,7 @@ impl Default for FacetingSettings {
             save: true,
             save_facets: false,
             r: false,
+            grid_semiuniform: false,
         }
     }
 }
@@ -1699,6 +1702,10 @@ impl MemoryWindow for FacetingSettings {
         
         ui.add(
             egui::Checkbox::new(&mut self.r, "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR")
+        );
+
+        ui.add(
+            egui::Checkbox::new(&mut self.grid_semiuniform, "Grid semiuniform")
         );
     }
 }

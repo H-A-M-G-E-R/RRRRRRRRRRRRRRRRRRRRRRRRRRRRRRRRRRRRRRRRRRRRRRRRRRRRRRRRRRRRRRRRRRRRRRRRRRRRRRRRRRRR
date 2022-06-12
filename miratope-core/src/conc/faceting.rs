@@ -785,6 +785,7 @@ impl Concrete {
         save: bool,
         save_facets: bool,
         r: bool,
+        grid_semiuniform: bool,
     ) -> Vec<(Concrete, Option<String>)> {
         let rank = self.rank();
 
@@ -965,6 +966,11 @@ impl Concrete {
                                 }
                             }
                         }
+                        if grid_semiuniform {
+                            if (hyperplane_vertices.len() != 4) && (hyperplane_vertices.len() != 6) && (hyperplane_vertices.len() != 10) {
+                                break
+                            }
+                        }
                         hyperplane_vertices.sort_unstable();
 
                         // Check if the hyperplane has been found already.
@@ -986,6 +992,11 @@ impl Concrete {
                         }
                         if is_new {
                             checked.insert(hyperplane_vertices.clone());
+                            if grid_semiuniform {
+                                if counting.len() > 30 {
+                                    break
+                                }
+                            }
                             hyperplane_orbits.push((hyperplane, hyperplane_vertices, counting.len()));
                         }
                     }

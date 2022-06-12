@@ -398,6 +398,9 @@ fn faceting_subdim(
                 break
             }
             loop { // Increment new_vertices.
+                if rank <= 3 {
+                    break 'b;
+                }
                 if new_vertices[update] == total_vert_count + update - rank + 3 {
                     if update < 1 {
                         break 'b;

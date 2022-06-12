@@ -897,7 +897,7 @@ impl Concrete {
             'b: loop {
                 'c: loop {
                     if now.elapsed().as_millis() > 500 {
-                        print!("{}loop {}, edge orbit {}, new verts {:?}", CL, dbg_count, idx, new_vertices);
+                        print!("{}loop {}, edge orbit {}, new verts {:?}, {} hyperplane orbits", CL, dbg_count, idx, new_vertices, hyperplane_orbits.len());
                         std::io::stdout().flush().unwrap();
                         now = Instant::now();
                     }

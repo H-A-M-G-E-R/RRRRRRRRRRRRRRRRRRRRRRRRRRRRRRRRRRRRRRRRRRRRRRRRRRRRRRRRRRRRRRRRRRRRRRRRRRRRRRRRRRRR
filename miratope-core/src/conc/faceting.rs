@@ -856,13 +856,13 @@ impl Concrete {
         
         for orbit in vertex_orbits {
             let rep = orbit[0]; // We only need one representative per orbit.
-            for vertex in 0..vertices.len() {
+            for vertex in rep+1..vertices.len() {
                 if let Some(k_v_o) = kept_vertex_orbit {
                     if orbit_of_vertex[vertex] != k_v_o as usize {
                         continue
                     }
                 }
-                if vertex != rep && !checked[rep][vertex] {
+                if !checked[rep][vertex] {
                     if let Some(e_l) = edge_length {
                         if ((&vertices[vertex]-&vertices[rep]).norm() - e_l).abs() > graze + f64::EPS {
                             continue
@@ -874,7 +874,6 @@ impl Concrete {
                         if !checked[c1][c2] {
                             new_orbit.push(vec![c1, c2]);
                             checked[c1][c2] = true;
-                            checked[c2][c1] = true;
                         }
                     }
                     pair_orbits.push(new_orbit);
@@ -887,7 +886,6 @@ impl Concrete {
         // Enumerate hyperplanes
         let mut hyperplane_orbits = Vec::new();
         let mut checked = HashSet::new();
-        let mut hyperplanes_vertices = Vec::new();
 
         let mut dbg_count = 0;
         let mut now = Instant::now();
@@ -895,7 +893,7 @@ impl Concrete {
         for (idx, pair_orbit) in pair_orbits.iter().enumerate() {
             let rep = &pair_orbit[0];
 
-            let mut new_vertices = vec![0; rank-3];
+            let mut new_vertices = vec![rep[1]+1; rank-3];
             let mut update = rank-4;
             'b: loop {
                 'c: loop {
@@ -967,29 +965,25 @@ impl Concrete {
                         hyperplane_vertices.sort_unstable();
 
                         // Check if the hyperplane has been found already.
-                        if !checked.contains(&hyperplane_vertices) {
-                            // If it's new, we add all the ones in its orbit.
-                            let mut new_orbit = Vec::new();
-                            let mut new_orbit_vertices = Vec::new();
-                            for row in &vertex_map {
-                                let mut new_hp_v = Vec::new();
-                                for idx in &hyperplane_vertices {
-                                    new_hp_v.push(row[*idx]);
-                                }
-                                let mut sorted = new_hp_v.clone();
-                                sorted.sort_unstable();
-
-                                if !checked.contains(&sorted) {
-                                    let new_hp_points = new_hp_v.iter().map(|x| &vertices[*x]);
-                                    let new_hp = Subspace::from_points(new_hp_points);
-                                    checked.insert(sorted);
-                                    new_orbit.push(new_hp);
-                                    new_orbit_vertices.push(new_hp_v);
-                                }
+                        let mut is_new = true;
+                        let mut counting = HashSet::<Vec<usize>>::new();
+                        for row in &vertex_map {
+                            let mut new_hp_v = Vec::new();
+                            for idx in &hyperplane_vertices {
+                                new_hp_v.push(row[*idx]);
                             }
-                            
-                            hyperplane_orbits.push(new_orbit);
-                            hyperplanes_vertices.push(new_orbit_vertices);
+                            new_hp_v.sort_unstable();
+
+                            if checked.contains(&new_hp_v) {
+                                is_new = false;
+                                break
+                            }
+
+                            counting.insert(new_hp_v);
+                        }
+                        if is_new {
+                            checked.insert(hyperplane_vertices.clone());
+                            hyperplane_orbits.push((hyperplane, hyperplane_vertices, counting.len()));
                         }
                     }
                     break
@@ -1026,7 +1020,7 @@ impl Concrete {
         let mut ff_counts = Vec::new();
 
         for (idx, orbit) in hyperplane_orbits.iter().enumerate() {
-            let (hp, hp_v) = (orbit[0].clone(), hyperplanes_vertices[idx][0].clone());
+            let (hp, hp_v) = (orbit.0.clone(), orbit.1.clone());
             let mut stabilizer = Vec::new();
             for row in &vertex_map {
                 let mut slice = Vec::new();
@@ -1084,7 +1078,7 @@ impl Concrete {
             ridges.push(ridges_row);
             ff_counts.push(ff_counts_row);
 
-            println!("{}: {} facets, {} verts, {} copies", idx, possible_facets_row.len(), hp_v.len(), orbit.len());
+            println!("{}: {} facets, {} verts, {} copies", idx, possible_facets_row.len(), hp_v.len(), orbit.2);
         }
 
         println!("\nComputing ridges...");
@@ -1109,7 +1103,7 @@ impl Concrete {
                     for i in 0..ridge[2].len() {
                         let mut new = Element::new(Subelements::new(), Superelements::new());
                         for sub in &ridge[2][i].subs {
-                            new.subs.push(hyperplanes_vertices[hp_i][0][*sub])
+                            new.subs.push(hyperplane_orbits[hp_i].1[*sub])
                         }
                         new_list.push(new);
                     }
@@ -1179,7 +1173,7 @@ impl Concrete {
 
         let mut f_counts = Vec::new();
         for orbit in hyperplane_orbits {
-            f_counts.push(orbit.len());
+            f_counts.push(orbit.2);
         }
 
         // Actually do the faceting

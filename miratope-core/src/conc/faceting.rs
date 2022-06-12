@@ -22,7 +22,7 @@ pub enum GroupEnum {
     Chiral(bool),
 }
 
-const CL: &str = "\r                                                                                                                                                                                                                                                                                                                                                                       \r";
+const CL: &str = "\r                                                                               \r";
 
 const DELAY: u128 = 200;
 

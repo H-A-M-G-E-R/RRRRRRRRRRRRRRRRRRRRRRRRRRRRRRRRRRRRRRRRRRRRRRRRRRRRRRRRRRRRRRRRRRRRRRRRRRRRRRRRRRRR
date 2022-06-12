@@ -945,11 +945,11 @@ impl Concrete {
                                     } 
                                 }
                                 hyperplane_vertices.push(idx);
-                            }
-                        }
-                        if let Some(v_h) = max_vertices_per_hyperplane {
-                            if hyperplane_vertices.len() > v_h {
-                                break 'c;
+                                if let Some(v_h) = max_vertices_per_hyperplane {
+                                    if hyperplane_vertices.len() > v_h {
+                                        break 'c;
+                                    }
+                                }
                             }
                         }
                         hyperplane_vertices.sort_unstable();

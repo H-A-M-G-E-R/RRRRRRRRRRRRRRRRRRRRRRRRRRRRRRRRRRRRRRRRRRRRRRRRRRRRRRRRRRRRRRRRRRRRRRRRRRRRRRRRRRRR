@@ -785,6 +785,7 @@ pub fn show_top_panel(
                             if faceting_settings.max_vertices_per_hyperplane == 0 {None} else {Some(faceting_settings.max_vertices_per_hyperplane)},
                             faceting_settings.graze,
                             if faceting_settings.kept_vertex_orbit == -1 {None} else {Some(faceting_settings.kept_vertex_orbit)},
+                            if faceting_settings.max_hyperplane_copies == 0 {None} else {Some(faceting_settings.max_hyperplane_copies)},
                             faceting_settings.compounds,
                             faceting_settings.mark_fissary,
                             faceting_settings.save,

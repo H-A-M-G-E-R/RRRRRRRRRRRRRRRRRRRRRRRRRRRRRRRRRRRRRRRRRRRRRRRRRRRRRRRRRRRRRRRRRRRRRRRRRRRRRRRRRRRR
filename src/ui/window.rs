@@ -1491,6 +1491,9 @@ pub struct FacetingSettings {
     /// Whether to exclude planes passing through the origin.
     pub exclude_hemis: bool,
 
+    /// The maximum number of copies of a hyperplane per orbit. 0 for no limit.
+    pub max_hyperplane_copies: usize,
+
     /// Whether to include trivial compounds (compounds of other full-symmetric facetings).
     pub compounds: bool,
 
@@ -1521,6 +1524,7 @@ impl Default for FacetingSettings {
             do_inradius: false,
             inradius: 1.,
             exclude_hemis: false,
+            max_hyperplane_copies: 0,
             compounds: false,
             mark_fissary: true,
             save: true,
@@ -1593,6 +1597,14 @@ impl MemoryWindow for FacetingSettings {
                 egui::DragValue::new(&mut self.kept_vertex_orbit)
                     .speed(0.02)
                     .clamp_range(-1..=isize::MAX)
+            );
+        });
+        ui.horizontal(|ui| {
+            ui.label("Max hyperplane copies per orbit");
+            ui.add(
+                egui::DragValue::new(&mut self.max_hyperplane_copies)
+                    .speed(0.02)
+                    .clamp_range(0..=usize::MAX)
             );
         });
         ui.separator();

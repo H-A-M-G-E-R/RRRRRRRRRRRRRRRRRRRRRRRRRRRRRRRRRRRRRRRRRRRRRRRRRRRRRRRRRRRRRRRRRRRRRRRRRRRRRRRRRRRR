@@ -780,6 +780,7 @@ impl Concrete {
         max_vertices_per_hyperplane: Option<usize>,
         graze: f64,
         kept_vertex_orbit: Option<isize>,
+        max_hyperplane_copies: Option<usize>,
         include_compounds: bool,
         mark_fissary: bool,
         save: bool,
@@ -983,6 +984,11 @@ impl Concrete {
                             }
 
                             counting.insert(new_hp_v);
+                            if let Some(mhpc) = max_hyperplane_copies {
+                                if counting.len() > mhpc {
+                                    break
+                                }
+                            }
                         }
                         if is_new {
                             checked.insert(hyperplane_vertices.clone());

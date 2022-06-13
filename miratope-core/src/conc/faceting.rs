@@ -995,7 +995,7 @@ impl Concrete {
                             counting.insert(new_hp_v);
                             if let Some(mhpc) = max_hyperplane_copies {
                                 if counting.len() > mhpc {
-                                    break
+                                    break 'c;
                                 }
                             }
                         }

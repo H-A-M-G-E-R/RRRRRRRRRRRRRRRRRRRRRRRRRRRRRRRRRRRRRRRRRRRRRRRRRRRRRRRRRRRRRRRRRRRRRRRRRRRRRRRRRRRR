@@ -327,7 +327,6 @@ fn faceting_subdim(
     // Enumerate hyperplanes
     let mut hyperplane_orbits = Vec::new();
     let mut checked = HashSet::<Vec<usize>>::new();
-    let mut hyperplanes_vertices = Vec::new();
 
     for pair_orbit in pair_orbits {
         let rep = &pair_orbit[0];
@@ -372,30 +371,26 @@ fn faceting_subdim(
                     hyperplane_vertices.sort_unstable();
 
                     // Check if the hyperplane has been found already.
-                    if !checked.contains(&hyperplane_vertices) {
-                        // If it's new, we add all the ones in its orbit.
-                            let mut new_orbit = Vec::new();
-                            let mut new_orbit_vertices = Vec::new();
-                            for row in &vertex_map {
-                                let mut new_hp_v = Vec::new();
-                                for idx in &hyperplane_vertices {
-                                    new_hp_v.push(row[*idx]);
-                                }
-                                let new_hp_points = new_hp_v.iter().map(|x| &flat_points[*x].0);
-                                let new_hp = Subspace::from_points(new_hp_points);
+                    let mut is_new = true;
+                    let mut counting = HashSet::<Vec<usize>>::new();
+                    for row in &vertex_map {
+                        let mut new_hp_v = Vec::new();
+                        for idx in &hyperplane_vertices {
+                            new_hp_v.push(row[*idx]);
+                        }
 
-                                let mut sorted = new_hp_v.clone();
-                                sorted.sort_unstable();
+                        new_hp_v.sort_unstable();
 
-                                if !checked.contains(&sorted) {
-                                    checked.insert(sorted);
-                                    new_orbit.push(new_hp);
-                                    new_orbit_vertices.push(new_hp_v);
-                                }
-                            }
-                            
-                            hyperplane_orbits.push(new_orbit);
-                            hyperplanes_vertices.push(new_orbit_vertices);
+                        if checked.contains(&new_hp_v) {
+                            is_new = false;
+                            break
+                        }
+                        
+                        counting.insert(new_hp_v);
+                    }
+                    if is_new {
+                        checked.insert(hyperplane_vertices.clone());
+                        hyperplane_orbits.push((hyperplane, hyperplane_vertices, counting.len()));
                     }
                     if rank <= 3 {
                         break 'b;
@@ -432,8 +427,8 @@ fn faceting_subdim(
     let mut ridges: Vec<Vec<Vec<Ranks>>> = Vec::new();
     let mut ff_counts = Vec::new();
 
-    for (i, orbit) in hyperplane_orbits.iter().enumerate() {
-        let (hp, hp_v) = (orbit[0].clone(), hyperplanes_vertices[i][0].clone());
+    for orbit in &hyperplane_orbits {
+        let (hp, hp_v) = (orbit.0.clone(), orbit.1.clone());
         let mut stabilizer = Vec::new();
         for row in &vertex_map {
             let mut slice = Vec::new();
@@ -513,7 +508,7 @@ fn faceting_subdim(
                 for i in 0..ridge[2].len() {
                     let mut new = Element::new(Subelements::new(), Superelements::new());
                     for sub in &ridge[2][i].subs {
-                        new.subs.push(hyperplanes_vertices[hp_i][0][*sub])
+                        new.subs.push(hyperplane_orbits[hp_i].1[*sub])
                     }
                     new_list.push(new);
                 }
@@ -563,7 +558,7 @@ fn faceting_subdim(
 
     let mut f_counts = Vec::new();
     for orbit in hyperplane_orbits {
-        f_counts.push(orbit.len());
+        f_counts.push(orbit.2);
     }
 
     // Actually do the faceting

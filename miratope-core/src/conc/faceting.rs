@@ -790,8 +790,8 @@ impl Concrete {
     ) -> Vec<(Concrete, Option<String>)> {
         let rank = self.rank();
 
-        if rank < 4 {
-            println!("\nFaceting polytopes of rank less than 3 is not supported!\n");
+        if rank < 3 {
+            println!("\nFaceting polytopes of rank less than 2 is not supported!\n");
             return Vec::new()
         }
 
@@ -902,7 +902,10 @@ impl Concrete {
                 continue;
             }
             let mut new_vertices: Vec<usize> = (rep[1]+1..rep[1]+rank-2).collect();
-            let mut update = rank-4;
+            let mut update = 0;
+            if rank > 3 {
+                update = rank-4;
+            }
             'b: loop {
                 'c: loop {
                     if now.elapsed().as_millis() > DELAY {
@@ -998,10 +1001,16 @@ impl Concrete {
                             checked.insert(hyperplane_vertices.clone());
                             hyperplane_orbits.push((hyperplane, hyperplane_vertices, counting.len()));
                         }
+                        if rank <= 3 {
+                            break 'b;
+                        }
                     }
                     break
                 }
                 loop { // Increment new_vertices.
+                    if rank <= 3 {
+                        break 'b;
+                    }
                     if new_vertices[update] == vertices.len() + update - rank + 3 {
                         if update < 1 {
                             break 'b;

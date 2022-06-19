@@ -200,6 +200,7 @@ fn faceting_subdim(
     vertex_map: Vec<Vec<usize>>,
     edge_length: Option<f64>,
     max_per_hyperplane: Option<usize>,
+    include_compounds: bool,
     graze: f64
 ) ->
     (Vec<(Ranks, Vec<(usize, usize)>)>, // Vec of facetings, along with the facet types of each of them
@@ -463,7 +464,7 @@ fn faceting_subdim(
         }
 
         let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), edge_length, max_per_hyperplane, graze);
+            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), edge_length, max_per_hyperplane, include_compounds, graze);
 
         let mut possible_facets_global_row = Vec::new();
         for f in &possible_facets_row {
@@ -733,8 +734,19 @@ fn faceting_subdim(
                     }
                 }
 
-                let t = facets.last().unwrap().clone();
-                facets.push((t.0 + 1, 0));
+                if include_compounds {
+                    let t = facets.last().unwrap().clone();
+                    facets.push((t.0 + 1, 0));
+                } else {
+                    let t = facets.last_mut().unwrap();
+                    if t.1 == possible_facets[t.0].len() - 1 {
+                        t.0 += 1;
+                        t.1 = 0;
+                    }
+                    else {
+                        t.1 += 1;
+                    }
+                }
             }
             1 => {
                 let t = facets.last_mut().unwrap();
@@ -753,6 +765,16 @@ fn faceting_subdim(
             _ => {}
         }
     }
+
+    if !include_compounds {
+        let output_idxs = filter_irc(&output_facets);
+        let mut output_new = Vec::new();
+        for idx in output_idxs {
+            output_new.push(output_facets[idx].clone());
+        }
+        output_facets = output_new;
+    }
+    output_facets.sort_unstable();
 
     let mut output_ridges = Vec::new();
     for i in possible_facets_global {
@@ -783,6 +805,7 @@ impl Concrete {
         kept_vertex_orbit: Option<isize>,
         max_hyperplane_copies: Option<usize>,
         include_compounds: bool,
+        include_compound_elements: bool,
         mark_fissary: bool,
         save: bool,
         save_facets: bool,
@@ -1081,7 +1104,7 @@ impl Concrete {
             }
 
             let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-                faceting_subdim(rank-1, hp, points, new_stabilizer, edge_length, max_per_hyperplane, graze);
+                faceting_subdim(rank-1, hp, points, new_stabilizer, edge_length, max_per_hyperplane, include_compound_elements, graze);
 
             let mut possible_facets_global_row = Vec::new();
             for f in &possible_facets_row {

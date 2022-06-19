@@ -1221,7 +1221,7 @@ impl Concrete {
             ridge_idx_orbits.push(r_i_o_row);
             hp_i += 1;
             if now.elapsed().as_millis() > DELAY {
-                print!("{}{}/{} hp, {} ridges", CL, hp_i, hyperplane_orbits.len(), ridge_orbits.len());
+                print!("{}{}/{} hp, {} ridges", CL, hp_i + 1, hyperplane_orbits.len(), ridge_orbits.len());
                 std::io::stdout().flush().unwrap();
                 now = Instant::now();
             }

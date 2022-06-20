@@ -1510,6 +1510,12 @@ pub struct FacetingSettings {
     pub save_facets: bool,
     
     pub r: bool,
+
+    /// Whether to include exotics.
+    pub exotic: bool,
+
+    /// Whether to include exotic elements.
+    pub exotic_elements: bool,
 }
 
 impl Default for FacetingSettings {
@@ -1534,6 +1540,8 @@ impl Default for FacetingSettings {
             save: true,
             save_facets: false,
             r: false,
+            exotic: false,
+            exotic_elements: false,
         }
     }
 }
@@ -1719,6 +1727,14 @@ impl MemoryWindow for FacetingSettings {
         
         ui.add(
             egui::Checkbox::new(&mut self.r, "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR")
+        );
+
+        ui.add(
+            egui::Checkbox::new(&mut self.exotic, "Include exotics")
+        );
+
+        ui.add(
+            egui::Checkbox::new(&mut self.exotic_elements, "Include exotic elements")
         );
     }
 }

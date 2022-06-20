@@ -791,7 +791,9 @@ pub fn show_top_panel(
                             faceting_settings.mark_fissary,
                             faceting_settings.save,
                             faceting_settings.save_facets,
-                            faceting_settings.r
+                            faceting_settings.r,
+                            faceting_settings.exotic,
+                            faceting_settings.exotic_elements
                         );
                         for faceting in facetings {
                             memory.push(faceting);

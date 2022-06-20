@@ -201,7 +201,8 @@ fn faceting_subdim(
     edge_length: Option<f64>,
     max_per_hyperplane: Option<usize>,
     include_compounds: bool,
-    graze: f64
+    graze: f64,
+    exotic: bool
 ) ->
     (Vec<(Ranks, Vec<(usize, usize)>)>, // Vec of facetings, along with the facet types of each of them
     Vec<usize>, // Counts of each hyperplane orbit
@@ -464,7 +465,7 @@ fn faceting_subdim(
         }
 
         let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), edge_length, max_per_hyperplane, include_compounds, graze);
+            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), edge_length, max_per_hyperplane, include_compounds, graze, exotic);
 
         let mut possible_facets_global_row = Vec::new();
         for f in &possible_facets_row {
@@ -608,19 +609,27 @@ fn faceting_subdim(
                 let mul = f_count * ridge_count / total_ridge_count;
 
                 ridges[ridge_orbit] += mul;
-                if ridges[ridge_orbit] > 2 {
+                if !exotic && ridges[ridge_orbit] > 2 {
                     break 'a;
                 }
             }
         }
         let mut valid = 0; // 0: valid, 1: exotic, 2: incomplete
-        for r in ridges {
-            if r > 2 {
-                valid = 1;
-                break
+        if exotic {
+            for r in ridges {
+                if r % 2 == 1 {
+                    valid = 2
+                }
             }
-            if r == 1 {
-                valid = 2;
+        } else {
+            for r in ridges {
+                if r > 2 {
+                    valid = 1;
+                    break
+                }
+                if r == 1 {
+                    valid = 2;
+                }
             }
         }
         match valid {
@@ -810,6 +819,8 @@ impl Concrete {
         save: bool,
         save_facets: bool,
         r: bool,
+        exotic: bool,
+        exotic_elements: bool
     ) -> Vec<(Concrete, Option<String>)> {
         let rank = self.rank();
 
@@ -1104,7 +1115,7 @@ impl Concrete {
             }
 
             let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-                faceting_subdim(rank-1, hp, points, new_stabilizer, edge_length, max_per_hyperplane, include_compound_elements, graze);
+                faceting_subdim(rank-1, hp, points, new_stabilizer, edge_length, max_per_hyperplane, include_compound_elements, graze, exotic_elements);
 
             let mut possible_facets_global_row = Vec::new();
             for f in &possible_facets_row {
@@ -1278,21 +1289,30 @@ impl Concrete {
                     let mul = f_count * ridge_count / total_ridge_count;
     
                     ridges[ridge_orbit] += mul;
-                    if ridges[ridge_orbit] > 2 {
+                    if !exotic && ridges[ridge_orbit] > 2 {
                         break 'a;
                     }
                 }
             }
             let mut valid = 0; // 0: valid, 1: exotic, 2: incomplete
-            for r in ridges {
-                if r > 2 {
-                    valid = 1;
-                    break
+            if exotic {
+                for r in ridges {
+                    if r % 2 == 1 {
+                        valid = 2
+                    }
                 }
-                if r == 1 {
-                    valid = 2;
+            } else {
+                for r in ridges {
+                    if r > 2 {
+                        valid = 1;
+                        break
+                    }
+                    if r == 1 {
+                        valid = 2;
+                    }
                 }
             }
+
             match valid {
                 0 => {
                     // Split compound facets into their components.

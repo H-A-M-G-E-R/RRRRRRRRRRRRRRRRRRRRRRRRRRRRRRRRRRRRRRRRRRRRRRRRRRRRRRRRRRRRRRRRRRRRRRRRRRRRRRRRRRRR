@@ -812,6 +812,7 @@ impl Concrete {
         max_vertices_per_hyperplane: Option<usize>,
         graze: f64,
         kept_vertex_orbit: Option<isize>,
+        min_hyperplane_copies: Option<usize>,
         max_hyperplane_copies: Option<usize>,
         include_compounds: bool,
         include_compound_elements: bool,
@@ -1029,6 +1030,11 @@ impl Concrete {
                                 if counting.len() > mhpc {
                                     break 'c;
                                 }
+                            }
+                        }
+                        if let Some(mhpc) = min_hyperplane_copies {
+                            if counting.len() < mhpc {
+                                break 'c;
                             }
                         }
                         if is_new {

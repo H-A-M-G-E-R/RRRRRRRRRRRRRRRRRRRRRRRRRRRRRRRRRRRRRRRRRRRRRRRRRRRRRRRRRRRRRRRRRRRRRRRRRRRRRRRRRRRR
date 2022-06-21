@@ -1595,7 +1595,7 @@ impl Concrete {
                         abs: abs.clone(),
                     };
 
-		    let mut fissary_status = "";
+                    let mut fissary_status = "";
                     if mark_fissary {
                         abs.element_sort();
                         
@@ -1613,14 +1613,14 @@ impl Concrete {
                     println!("Faceting {}:{}{}", faceting_idx, facets_fmt, fissary_status);
 
                     if save {
-	            	if r {
-		            if fissary_status == "" {
+                        if r {
+                            if fissary_status == "" {
                                 output.push((poly.clone(), Some(
                                     if save_facets {
                                         format!("faceting {} -{}{}", faceting_idx, facets_fmt, fissary_status)
                                     } else {
                                         format!("faceting {}{}", faceting_idx, fissary_status)
-			            }
+                                    }
                                 )));
                             }
                         } else {

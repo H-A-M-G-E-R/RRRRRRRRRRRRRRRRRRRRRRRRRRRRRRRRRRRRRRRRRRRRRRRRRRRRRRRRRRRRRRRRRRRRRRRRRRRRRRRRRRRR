@@ -805,13 +805,14 @@ impl Concrete {
         vertices: Vec<Point<f64>>,
         symmetry: GroupEnum,
         edge_length: Option<f64>,
+        min_inradius: Option<f64>,
         max_inradius: Option<f64>,
         exclude_hemis: bool,
         noble: Option<usize>,
         max_per_hyperplane: Option<usize>,
         max_vertices_per_hyperplane: Option<usize>,
         graze: f64,
-        kept_vertex_orbit: Option<isize>,
+        kept_vertex_orbit: Option<usize>,
         min_hyperplane_copies: Option<usize>,
         max_hyperplane_copies: Option<usize>,
         include_compounds: bool,
@@ -895,7 +896,7 @@ impl Concrete {
             let rep = orbit[0]; // We only need one representative per orbit.
             for vertex in rep+1..vertices.len() {
                 if let Some(k_v_o) = kept_vertex_orbit {
-                    if orbit_of_vertex[vertex] != k_v_o as usize {
+                    if orbit_of_vertex[vertex] != k_v_o {
                         continue
                     }
                 }
@@ -962,7 +963,7 @@ impl Concrete {
                     if let Some(k_v_o) = kept_vertex_orbit {
                         // Checks if the vertices' orbits match.
                         for (v_i, v) in new_vertices.iter().enumerate() {
-                            if orbit_of_vertex[*v] != k_v_o as usize {
+                            if orbit_of_vertex[*v] != k_v_o {
                                 update = v_i;
                                 break 'c;
                             }
@@ -981,6 +982,11 @@ impl Concrete {
 
                     if hyperplane.is_hyperplane() {
                         let inradius = hyperplane.distance(&Point::zeros(self.dim().unwrap()));
+                        if let Some(mir) = min_inradius {
+                            if inradius < mir {
+                                break
+                            }
+                        }
                         if let Some(mir) = max_inradius {
                             if inradius > mir {
                                 break
@@ -996,7 +1002,7 @@ impl Concrete {
                         for (idx, v) in vertices.iter().enumerate() {
                             if hyperplane.distance(&v) < f64::EPS {
                                 if let Some(k_v_o) = kept_vertex_orbit {
-                                    if orbit_of_vertex[idx] != k_v_o as usize {
+                                    if orbit_of_vertex[idx] != k_v_o {
                                         continue
                                     } 
                                 }

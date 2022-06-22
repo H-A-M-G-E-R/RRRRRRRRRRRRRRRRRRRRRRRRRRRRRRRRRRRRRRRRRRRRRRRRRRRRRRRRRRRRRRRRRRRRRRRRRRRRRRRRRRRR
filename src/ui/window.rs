@@ -1476,17 +1476,26 @@ pub struct FacetingSettings {
 
     pub graze: f64,
 
-    // The kept vertex orbit. -1 for all orbits.
-    pub kept_vertex_orbit: isize,
+    /// Whether to use a kept vertex orbit.
+    pub do_kept_vertex_orbit: bool,
+
+    // The kept vertex orbit.
+    pub kept_vertex_orbit: usize,
 
     /// Where to get the symmetry group from.
     pub group: GroupEnum2,
 
+    /// Whether to use a minimum inradius.
+    pub do_min_inradius: bool,
+
+    /// The minimum inradius.
+    pub min_inradius: f64,
+
     /// Whether to use a maximum inradius.
-    pub do_inradius: bool,
+    pub do_max_inradius: bool,
 
     /// The maximum inradius.
-    pub inradius: f64,
+    pub max_inradius: f64,
 
     /// Whether to exclude planes passing through the origin.
     pub exclude_hemis: bool,
@@ -1529,12 +1538,15 @@ impl Default for FacetingSettings {
             max_facet_types: 0,
             max_per_hyperplane: 0,
             max_vertices_per_hyperplane: 0,
-            edge_length: 1.0,
-            graze: 0.0,
-            kept_vertex_orbit: -1,
+            edge_length: 1.,
+            graze: 0.,
+            do_kept_vertex_orbit: false,
+            kept_vertex_orbit: 0,
             group: GroupEnum2::Chiral(false),
-            do_inradius: false,
-            inradius: 1.,
+            do_min_inradius: false,
+            min_inradius: 1.,
+            do_max_inradius: false,
+            max_inradius: 1.,
             exclude_hemis: false,
             min_hyperplane_copies: 0,
             max_hyperplane_copies: 0,
@@ -1608,12 +1620,13 @@ impl MemoryWindow for FacetingSettings {
             );
         });
         ui.horizontal(|ui| {
-            ui.label("Kept vertex orbit");
             ui.add(
-                egui::DragValue::new(&mut self.kept_vertex_orbit)
-                    .speed(0.02)
-                    .clamp_range(-1..=isize::MAX)
+                egui::Checkbox::new(&mut self.do_kept_vertex_orbit, "")
             );
+            ui.add(
+                egui::DragValue::new(&mut self.kept_vertex_orbit).clamp_range(0..=usize::MAX).speed(0.02)
+            );
+            ui.label("Kept vertex orbit");
         });
         ui.horizontal(|ui| {
             ui.label("Min hyperplane copies per orbit");
@@ -1705,10 +1718,20 @@ impl MemoryWindow for FacetingSettings {
 
         ui.horizontal(|ui| {
             ui.add(
-                egui::Checkbox::new(&mut self.do_inradius, "")
+                egui::Checkbox::new(&mut self.do_min_inradius, "")
             );
             ui.add(
-                egui::DragValue::new(&mut self.inradius).clamp_range(0.0..=Float::MAX).speed(0.004)
+                egui::DragValue::new(&mut self.min_inradius).clamp_range(0.0..=Float::MAX).speed(0.004)
+            );
+            ui.label("Min inradius");
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(
+                egui::Checkbox::new(&mut self.do_max_inradius, "")
+            );
+            ui.add(
+                egui::DragValue::new(&mut self.max_inradius).clamp_range(0.0..=Float::MAX).speed(0.004)
             );
             ui.label("Max inradius");
         });

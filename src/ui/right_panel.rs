@@ -7,7 +7,7 @@ use bevy_egui::{
     egui,
     EguiContext,
 };
-use miratope_core::{conc::{element_types::{EL_NAMES, EL_SUFFIXES}, ConcretePolytope}, Polytope, abs::Ranked, geometry::{Subspace, Point, Vector}};
+use miratope_core::{conc::{element_types::{EL_NAMES, EL_NAMES_SINGULAR, EL_SUFFIXES}, ConcretePolytope}, Polytope, abs::Ranked, geometry::{Subspace, Point, Vector}};
 use vec_like::VecLike;
 
 use super::{top_panel::{SectionDirection, SectionState}, main_window::PolyName};
@@ -220,7 +220,10 @@ pub fn show_right_panel(
                                             element.flatten();
                                             element.recenter();
                                             *p = element;
-                                            poly_name.0 = format!("Element of {}",element_types.poly_name.clone());
+                                            poly_name.0 = format!("{} of {}",
+                                            if r >= EL_NAMES_SINGULAR.len() {"".to_string()}
+                                            else {EL_NAMES_SINGULAR[r].to_string()},
+                                            element_types.poly_name.clone());
                                         } else {
                                             eprintln!("Element failed: no element at rank {}, index {}", r, i);
                                         }
@@ -239,7 +242,10 @@ pub fn show_right_panel(
                                                 figure.flatten();
                                                 figure.recenter();
                                                 *p = figure;
-                                                poly_name.0 = format!("Figure of {}",element_types.poly_name.clone());
+                                                poly_name.0 = format!("{} figure of {}",
+                                                if r >= EL_NAMES_SINGULAR.len() {"".to_string()}
+                                                else {EL_NAMES_SINGULAR[r].to_string()},
+                                                element_types.poly_name.clone());
                                             }
                                             Ok(None) => eprintln!("Figure failed: no element at rank {}, index {}", r, i),
                                             Err(err) => eprintln!("Figure failed: {}", err),

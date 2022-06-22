@@ -15,6 +15,8 @@ use vec_like::*;
 
 use super::ConcretePolytope;
 
+const CL: &str = "\r                                                                               \r";
+
 impl Flag {
     /// Outputs a sequence of vertices obtained from applying a fixed sequence of flag changes to a flag.
     /// Used for computing the elements of a symmetry group. 
@@ -227,7 +229,7 @@ impl Vertices {
         }
 
         let mut vertex_map: Vec<Vec<usize>> = Vec::new();
-
+        let mut isometry_idx = 0;
         for isometry in group {
             let mut vertex_map_row = Vec::<usize>::new();
             for vertex in &vertices_vec {
@@ -242,6 +244,8 @@ impl Vertices {
                 }
             }
             vertex_map.push(vertex_map_row);
+            isometry_idx += 1;
+            print!("{}{} isometries", CL, isometry_idx);
         }
         
         (

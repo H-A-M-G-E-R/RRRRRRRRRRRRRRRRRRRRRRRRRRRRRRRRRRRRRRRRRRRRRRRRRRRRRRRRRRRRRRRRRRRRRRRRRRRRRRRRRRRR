@@ -116,6 +116,9 @@ fn label_irc(vec: &Vec<Vec<(usize,usize)>>) -> HashMap<usize, (usize,usize)> {
 
     'a: for a in 0..vec.len() { // `a` is the index of the base set
         for b in 0..vec.len() { // `b` is the index of a potential subset of `a`
+            if a == b {
+                continue
+            }
             if vec[b].len() >= vec[a].len() { // A strict subset must be smaller than the base.
                 continue
             }

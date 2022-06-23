@@ -482,14 +482,14 @@ pub fn show_top_panel(
                     if ui.button("Rotation symmetry group").clicked() {
                         if let Some(mut p) = query.iter_mut().next() {
                             let group = p.get_rotation_group().unwrap().0;
-                            println!("Rotation symmetry order {}", group.count());
+                            println!("\nRotation symmetry order {}", group.count());
                         }
                     }
                 } else {
                     if ui.button("Symmetry group").clicked() {
                         if let Some(mut p) = query.iter_mut().next() {
                             let group = p.get_symmetry_group().unwrap().0;
-                            println!("Symmetry order {}", group.count());
+                            println!("\nSymmetry order {}", group.count());
                         }
                     }
                 }

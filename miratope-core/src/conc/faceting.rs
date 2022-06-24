@@ -174,7 +174,7 @@ fn filter_irc(vec: &Vec<Vec<(usize,usize)>>) -> Vec<usize> {
             if a == b {
                 continue
             }
-            if vec[b].len() > vec[a].len() { // A strict subset must be smaller than the base.
+            if vec[b].len() >= vec[a].len() { // A strict subset must be smaller than the base.
                 continue
             }
             if vec[b][0] > vec[a][0] { // One of the subsets must contain the first facet.
@@ -783,11 +783,20 @@ fn faceting_subdim(
 
     if !include_compounds {
         let output_idxs = filter_irc(&output_facets);
-        let mut output_new = Vec::new();
+        let mut output_facets_new = Vec::new();
         for idx in output_idxs {
-            output_new.push(output_facets[idx].clone());
+            output_facets_new.push(output_facets[idx].clone());
         }
-        output_facets = output_new;
+        output_facets = output_facets_new;
+        let mut output_new = Vec::new();
+        let mut idx = 0;
+        for output_component in output {
+            if output_component.1 == output_facets[idx] {
+                output_new.push(output_component);
+                idx += 1;
+            }
+        }
+        output = output_new;
     }
     output_facets.sort_unstable();
 

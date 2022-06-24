@@ -5,9 +5,9 @@ members = ["miratope-core", "vec-like"]
 name = "miratope"
 description = "A polytope renderer and builder."
 license = "MIT"
-version = "0.4.4"
+version = "0.4.5"
 repository = "https://github.com/H-A-M-G-E-R/miratope-rs"
-keywords = ["polytope", "dimension", "geometry"]
+keywords = ["polytope", "dimension", "geometry", "ketchup"]
 authors = [
     "Violeta Hernández <vi.hdz.p@gmail.com>",
     "Grayson Burton <ocornoc@protonmail.com>",

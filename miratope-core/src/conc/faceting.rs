@@ -788,6 +788,7 @@ fn faceting_subdim(
             output_facets_new.push(output_facets[idx].clone());
         }
         output_facets = output_facets_new;
+        // Match the output with the new output facets.
         let mut output_new = Vec::new();
         let mut idx = 0;
         for output_component in output {

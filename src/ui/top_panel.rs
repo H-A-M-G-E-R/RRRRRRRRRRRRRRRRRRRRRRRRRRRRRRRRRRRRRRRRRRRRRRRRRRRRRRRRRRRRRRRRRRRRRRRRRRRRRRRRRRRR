@@ -804,6 +804,8 @@ pub fn show_top_panel(
                             faceting_settings.mark_fissary,
                             faceting_settings.save,
                             faceting_settings.save_facets,
+                            faceting_settings.save_to_file,
+                            faceting_settings.file_path.clone(),
                             faceting_settings.r,
                             faceting_settings.exotic,
                             faceting_settings.exotic_elements

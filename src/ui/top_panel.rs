@@ -808,7 +808,8 @@ pub fn show_top_panel(
                             faceting_settings.file_path.clone(),
                             faceting_settings.r,
                             faceting_settings.exotic,
-                            faceting_settings.exotic_elements
+                            faceting_settings.exotic_elements,
+                            faceting_settings.idtessid
                         );
                         for faceting in facetings {
                             memory.push(faceting);

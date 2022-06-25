@@ -208,7 +208,8 @@ fn faceting_subdim(
     max_per_hyperplane: Option<usize>,
     include_compounds: bool,
     graze: f64,
-    exotic: bool
+    exotic: bool,
+    idtessid: bool
 ) ->
     (Vec<(Ranks, Vec<(usize, usize)>)>, // Vec of facetings, along with the facet types of each of them
     Vec<usize>, // Counts of each hyperplane orbit
@@ -471,7 +472,7 @@ fn faceting_subdim(
         }
 
         let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), edge_length, max_per_hyperplane, include_compounds, graze, exotic);
+            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), edge_length, max_per_hyperplane, include_compounds, graze, exotic, idtessid);
 
         let mut possible_facets_global_row = Vec::new();
         for f in &possible_facets_row {
@@ -840,7 +841,8 @@ impl Concrete {
         file_path: String,
         r: bool,
         exotic: bool,
-        exotic_elements: bool
+        exotic_elements: bool,
+        idtessid: bool
     ) -> Vec<(Concrete, Option<String>)> {
         let rank = self.rank();
         let mut now = Instant::now();
@@ -1032,6 +1034,11 @@ impl Concrete {
                                 }
                             }
                         }
+                        if idtessid {
+                            if hyperplane_vertices.len() != 4 && hyperplane_vertices.len() != 6 && hyperplane_vertices.len() != 12 {
+                                break 'c;
+                            }
+                        }
                         hyperplane_vertices.sort_unstable();
 
                         // Check if the hyperplane has been found already.
@@ -1145,7 +1152,7 @@ impl Concrete {
             }
 
             let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-                faceting_subdim(rank-1, hp, points, new_stabilizer, edge_length, max_per_hyperplane, include_compound_elements, graze, exotic_elements);
+                faceting_subdim(rank-1, hp, points, new_stabilizer, edge_length, max_per_hyperplane, include_compound_elements, graze, exotic_elements, idtessid);
 
             let mut possible_facets_global_row = Vec::new();
             for f in &possible_facets_row {
@@ -1725,7 +1732,20 @@ impl Concrete {
                 } else {
                     poly.recenter();
                 }
-                output.push((poly, Some(format!("facet ({},{})", i.0.0, i.0.1))));
+                if save_to_file {
+                    let mut path = PathBuf::from(&file_path);
+                        path.push(format!("{}.off", format!("facet ({},{})", i.0.0, i.0.1)))
+                        let mut file = match File::create(&path) {
+                            Ok(file) => file,
+                            Err(why) => panic!("couldn't create {}: {}", path.display(), why),
+                        };
+                        match file.write_all(OffWriter::new(&poly, OffOptions::default()).build().unwrap().as_bytes()) {
+                            Err(why) => panic!("couldn't write to {}: {}", path.display(), why),
+                            Ok(_) => (),
+                        }
+                } else {
+                    output.push((poly, Some(format!("facet ({},{})", i.0.0, i.0.1))));
+                }
             }
         }
 

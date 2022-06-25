@@ -1534,6 +1534,8 @@ pub struct FacetingSettings {
 
     /// Whether to include exotic elements.
     pub exotic_elements: bool,
+
+    pub idtessid: bool,
 }
 
 impl Default for FacetingSettings {
@@ -1566,6 +1568,7 @@ impl Default for FacetingSettings {
             r: false,
             exotic: false,
             exotic_elements: false,
+            idtessid: false,
         }
     }
 }
@@ -1790,6 +1793,10 @@ impl MemoryWindow for FacetingSettings {
 
         ui.add(
             egui::Checkbox::new(&mut self.exotic_elements, "Include exotic elements")
+        );
+
+        ui.add(
+            egui::Checkbox::new(&mut self.idtessid, "Idtessid")
         );
     }
 }

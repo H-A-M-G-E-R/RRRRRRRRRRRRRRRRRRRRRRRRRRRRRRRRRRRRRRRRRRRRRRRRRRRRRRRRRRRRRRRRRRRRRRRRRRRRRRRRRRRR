@@ -1725,7 +1725,20 @@ impl Concrete {
                 } else {
                     poly.recenter();
                 }
-                output.push((poly, Some(format!("facet ({},{})", i.0.0, i.0.1))));
+                if save_to_file {
+                    let mut path = PathBuf::from(&file_path);
+                        path.push(format!("{}.off", format!("facet ({},{})", i.0.0, i.0.1)));
+                        let mut file = match File::create(&path) {
+                            Ok(file) => file,
+                            Err(why) => panic!("couldn't create {}: {}", path.display(), why),
+                        };
+                        match file.write_all(OffWriter::new(&poly, OffOptions::default()).build().unwrap().as_bytes()) {
+                            Err(why) => panic!("couldn't write to {}: {}", path.display(), why),
+                            Ok(_) => (),
+                        }
+                } else {
+                    output.push((poly, Some(format!("facet ({},{})", i.0.0, i.0.1))));
+                }
             }
         }
 

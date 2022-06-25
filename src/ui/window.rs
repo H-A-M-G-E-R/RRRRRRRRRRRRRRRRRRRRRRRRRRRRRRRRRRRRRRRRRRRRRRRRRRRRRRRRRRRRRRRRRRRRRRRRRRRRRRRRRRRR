@@ -1517,11 +1517,6 @@ pub struct FacetingSettings {
     /// The maximum number of vertices per hyperplane. 0 for no limit.
     pub max_vertices_per_hyperplane: usize,
 
-    /// Edge length of facetings.
-    pub edge_length: f64,
-
-    pub graze: f64,
-
     /// Whether to use a kept vertex orbit.
     pub do_kept_vertex_orbit: bool,
 
@@ -1530,6 +1525,19 @@ pub struct FacetingSettings {
 
     /// Where to get the symmetry group from.
     pub group: GroupEnum2,
+
+    // These can't just be `Option`s because you need checkboxes and stuff.
+    /// Whether to use a minimum edge length.
+    pub do_min_edge_length: bool,
+
+    /// The minimum edge length.
+    pub min_edge_length: f64,
+
+    /// Whether to use a maximum edge length.
+    pub do_max_edge_length: bool,
+
+    /// The maximum edge length.
+    pub max_edge_length: f64,
 
     /// Whether to use a minimum inradius.
     pub do_min_inradius: bool,
@@ -1590,15 +1598,17 @@ impl Default for FacetingSettings {
             max_facet_types: 0,
             max_per_hyperplane: 0,
             max_vertices_per_hyperplane: 0,
-            edge_length: 1.,
-            graze: 0.,
             do_kept_vertex_orbit: false,
             kept_vertex_orbit: 0,
             group: GroupEnum2::Chiral(false),
+            do_min_edge_length: true,
+            min_edge_length: 1.,
+            do_max_edge_length: true,
+            max_edge_length: 1.,
             do_min_inradius: false,
-            min_inradius: 1.,
+            min_inradius: 0.,
             do_max_inradius: false,
-            max_inradius: 1.,
+            max_inradius: 0.,
             exclude_hemis: false,
             min_hyperplane_copies: 0,
             max_hyperplane_copies: 0,
@@ -1655,22 +1665,6 @@ impl MemoryWindow for FacetingSettings {
                 egui::DragValue::new(&mut self.max_vertices_per_hyperplane)
                     .speed(0.02)
                     .clamp_range(0..=usize::MAX)
-            );
-        });
-        ui.horizontal(|ui| {
-            ui.label("Edge length");
-            ui.add(
-                egui::DragValue::new(&mut self.edge_length)
-                    .speed(0.01)
-                    .clamp_range(0.0..=Float::MAX)
-            );
-        });
-        ui.horizontal(|ui| {
-            ui.label("graze");
-            ui.add(
-                egui::DragValue::new(&mut self.graze)
-                    .speed(0.01)
-                    .clamp_range(0.0..=Float::MAX)
             );
         });
         ui.horizontal(|ui| {
@@ -1772,10 +1766,30 @@ impl MemoryWindow for FacetingSettings {
 
         ui.horizontal(|ui| {
             ui.add(
+                egui::Checkbox::new(&mut self.do_min_edge_length, "")
+            );
+            ui.add(
+                egui::DragValue::new(&mut self.min_edge_length).clamp_range(0.0..=Float::MAX).speed(0.01)
+            );
+            ui.label("Min edge length");
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(
+                egui::Checkbox::new(&mut self.do_max_edge_length, "")
+            );
+            ui.add(
+                egui::DragValue::new(&mut self.max_edge_length).clamp_range(0.0..=Float::MAX).speed(0.01)
+            );
+            ui.label("Max edge length");
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(
                 egui::Checkbox::new(&mut self.do_min_inradius, "")
             );
             ui.add(
-                egui::DragValue::new(&mut self.min_inradius).clamp_range(0.0..=Float::MAX).speed(0.004)
+                egui::DragValue::new(&mut self.min_inradius).clamp_range(0.0..=Float::MAX).speed(0.001)
             );
             ui.label("Min inradius");
         });
@@ -1785,7 +1799,7 @@ impl MemoryWindow for FacetingSettings {
                 egui::Checkbox::new(&mut self.do_max_inradius, "")
             );
             ui.add(
-                egui::DragValue::new(&mut self.max_inradius).clamp_range(0.0..=Float::MAX).speed(0.004)
+                egui::DragValue::new(&mut self.max_inradius).clamp_range(0.0..=Float::MAX).speed(0.001)
             );
             ui.label("Max inradius");
         });
@@ -1793,6 +1807,8 @@ impl MemoryWindow for FacetingSettings {
         ui.add(
             egui::Checkbox::new(&mut self.exclude_hemis, "Exclude hemis")
         );
+
+        ui.separator();
 
         ui.add(
             egui::Checkbox::new(&mut self.compounds, "Include trivial compounds")

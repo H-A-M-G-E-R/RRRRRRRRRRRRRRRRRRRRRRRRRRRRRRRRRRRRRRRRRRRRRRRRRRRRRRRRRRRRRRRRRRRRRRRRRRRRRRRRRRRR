@@ -1734,7 +1734,7 @@ impl Concrete {
                 }
                 if save_to_file {
                     let mut path = PathBuf::from(&file_path);
-                        path.push(format!("{}.off", format!("facet ({},{})", i.0.0, i.0.1)))
+                        path.push(format!("{}.off", format!("facet ({},{})", i.0.0, i.0.1)));
                         let mut file = match File::create(&path) {
                             Ok(file) => file,
                             Err(why) => panic!("couldn't create {}: {}", path.display(), why),

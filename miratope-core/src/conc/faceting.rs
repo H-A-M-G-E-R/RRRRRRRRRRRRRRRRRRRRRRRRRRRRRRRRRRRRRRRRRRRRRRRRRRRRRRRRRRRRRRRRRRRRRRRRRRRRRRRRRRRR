@@ -377,6 +377,11 @@ fn faceting_subdim(
                             hyperplane_vertices.push(idx);
                         }
                     }
+                    if idtessid {
+                        if hyperplane_vertices.len() == 5 {
+                            break 'c;
+                        }
+                    }
                     hyperplane_vertices.sort_unstable();
 
                     // Check if the hyperplane has been found already.

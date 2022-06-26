@@ -1572,6 +1572,9 @@ pub struct FacetingSettings {
     /// Whether to include the facet numbers in the name.
     pub label_facets: bool,
 
+    /// Only use uniform or semiuniform facets.
+    pub uniform: bool,
+
     /// Whether to save the facetings in memory.
     pub save: bool,
 
@@ -1619,6 +1622,7 @@ impl Default for FacetingSettings {
             compound_elements: false,
             mark_fissary: true,
             label_facets: true,
+            uniform: false,
             save: true,
             save_facets: false,
             save_to_file: false,
@@ -1828,6 +1832,10 @@ impl MemoryWindow for FacetingSettings {
 
         ui.add(
             egui::Checkbox::new(&mut self.label_facets, "Label facets")
+        );
+
+        ui.add(
+            egui::Checkbox::new(&mut self.uniform, "Only uniform/semiuniform facets")
         );
 
         ui.separator();

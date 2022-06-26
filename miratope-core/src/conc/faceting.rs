@@ -208,7 +208,9 @@ fn faceting_subdim(
     max_edge_length: Option<f64>,
     max_per_hyperplane: Option<usize>,
     include_compounds: bool,
-    exotic: bool
+    exotic: bool,
+	print_faceting_count: bool,
+	uniform: bool
 ) ->
     (Vec<(Ranks, Vec<(usize, usize)>)>, // Vec of facetings, along with the facet types of each of them
     Vec<usize>, // Counts of each hyperplane orbit
@@ -217,6 +219,7 @@ fn faceting_subdim(
 ) {
     let total_vert_count = points.len();
 
+        let mut now = Instant::now();
     if rank == 2 {
         // The only faceting of a dyad is itself.
         // We distinguish between snub and non-snub edges.
@@ -276,7 +279,6 @@ fn faceting_subdim(
             )
         }
     }
-
     let mut flat_points = Vec::new();
     for p in &points {
         flat_points.push(PointOrd::new(plane.flatten(&p.0)));
@@ -484,7 +486,7 @@ fn faceting_subdim(
         }
 
         let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), min_edge_length, max_edge_length, max_per_hyperplane, include_compounds, exotic);
+            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), min_edge_length, max_edge_length, max_per_hyperplane, include_compounds, exotic, false, uniform);
 
         let mut possible_facets_global_row = Vec::new();
         for f in &possible_facets_row {
@@ -588,6 +590,7 @@ fn faceting_subdim(
 
     let mut facets = vec![(0, 0)];
 
+		let mut skipped = 0;
     'l: loop {
         loop {
             let t = facets.last_mut().unwrap();
@@ -697,11 +700,41 @@ fn faceting_subdim(
                     }
                 }
 
-                let mut facet_vec = Vec::from_iter(facet_set);
+                let mut facet_vec = Vec::from_iter(facet_set.clone());
+                let mut facet_vec2 = Vec::from_iter(facet_set);
 
                 let mut ranks = Ranks::new();
                 ranks.push(vec![Element::new(vec![].into(), vec![].into())].into()); // nullitope
                 ranks.push(vec![Element::new(vec![0].into(), vec![].into()); total_vert_count].into()); // vertices
+				
+                let mut ranks2 = Ranks::new();
+                ranks2.push(vec![Element::new(vec![].into(), vec![].into())].into()); // nullitope
+					let mut to_new_idx = HashMap::new();
+					let mut to_old_idx = Vec::new();
+					let mut idx = 0;
+				if uniform {
+					for i in 0..facet_vec2.len() {
+						let mut new_list = ElementList::new();
+						for j in 0..facet_vec2[i][2].len() {
+							let mut new = Element::new(Subelements::new(), Superelements::new());
+							for sub in facet_vec2[i][2][j].subs.clone() {
+								if to_new_idx.get(&sub).is_none() {
+									to_new_idx.insert(sub, idx);
+									to_old_idx.push(sub);
+									idx += 1;
+								}
+								new.subs.push(*to_new_idx.get(&sub).unwrap())
+							}
+							new_list.push(new);
+						}
+						facet_vec2[i][2] = new_list;
+					}
+					let mut new_rank = ElementList::new();
+					for _i in 0..idx {
+						new_rank.push(Element::new(vec![0].into(), vec![].into()));
+					}
+					ranks2.push(new_rank);
+				}
 
                 for r in 2..rank-1 { // edges and up
                     let mut subs_to_idx = HashMap::new();
@@ -736,6 +769,42 @@ fn faceting_subdim(
                         new_rank.push(Element::new(el, vec![].into()));
                     }
                     ranks.push(new_rank);
+					
+					
+					
+					if uniform {
+						let mut subs_to_idx = HashMap::new();
+						let mut idx_to_subs = Vec::new();
+						let mut idx = 0;
+						for facet in &facet_vec2 {
+							let els = &facet[r];
+							for el in els {
+								if subs_to_idx.get(&el.subs).is_none() {
+									subs_to_idx.insert(el.subs.clone(), idx);
+									idx_to_subs.push(el.subs.clone());
+									idx += 1;
+								}
+							}
+						}
+						for i in 0..facet_vec2.len() {
+							let mut new_list = ElementList::new();
+							for j in 0..facet_vec2[i][r+1].len() {
+								let mut new = Element::new(Subelements::new(), Superelements::new());
+								for sub in &facet_vec2[i][r+1][j].subs {
+									let sub_subs = &facet_vec2[i][r][*sub].subs;
+									new.subs.push(*subs_to_idx.get(sub_subs).unwrap())
+								}
+								new_list.push(new);
+							}
+							facet_vec2[i][r+1] = new_list;
+						}
+
+						let mut new_rank = ElementList::new();
+						for el in idx_to_subs {
+							new_rank.push(Element::new(el, vec![].into()));
+						}
+						ranks2.push(new_rank);
+					}
                 }
                 let mut new_rank = ElementList::new();
                 let mut set = HashSet::new();
@@ -752,12 +821,80 @@ fn faceting_subdim(
                 ranks.push(new_rank); // facets
 
                 ranks.push(vec![Element::new(Subelements::from_iter(0..n_r_len), Superelements::new())].into()); // body
+				
+				if uniform {
+					let mut new_rank = ElementList::new();
+					let mut set = HashSet::new();
 
-                output.push((ranks, new_facets.clone()));
-                output_facets.push(new_facets.clone());
+					for f_i in 0..facet_vec2.len() {
+						facet_vec2[f_i][rank-1][0].subs.sort();
+						let subs = facet_vec2[f_i][rank-1][0].subs.clone();
+						if !set.contains(&subs) {
+							new_rank.push(Element::new(subs.clone(), Superelements::new()));
+							set.insert(subs);
+						}
+					}
+					let n_r_len = new_rank.len();
+					ranks2.push(new_rank); // facets
+
+					ranks2.push(vec![Element::new(Subelements::from_iter(0..n_r_len), Superelements::new())].into()); // body
+				}
+
+            if uniform {
+				unsafe {
+					let mut builder = AbstractBuilder::new();
+					for rank in ranks2 {
+						builder.push_empty();
+						for el in rank {
+							builder.push_subs(el.subs);
+						}
+					}
+		
+					if builder.ranks().is_dyadic().is_ok() {
+						let abs = builder.build();
+						let mut new_vertices = Vec::new();
+						for i in to_old_idx {
+							new_vertices.push(flat_points[i].0.clone());
+						}
+
+						let mut poly = Concrete {
+							vertices: new_vertices,
+							abs: abs.clone(),
+						};
+					//poly.flatten();
+						if let Some(sphere) = poly.circumsphere() {
+							poly.recenter_with(&sphere.center);
+						} else {
+							poly.recenter();
+						}
+						let amount = poly.element_types()[1].len();
+						
+						if amount <= 1 {
+					output.push((ranks, new_facets.clone()));
+					output_facets.push(new_facets.clone());
+						} else {
+							skipped += 1;
+						}
+					}
+				}
+            if now.elapsed().as_millis() > DELAY && print_faceting_count {
+                print!("{}{} facets found, {} skipped", CL, output.len(), skipped);
+                std::io::stdout().flush().unwrap();
+                now = Instant::now();
+            }
+			} else {
+				
+					output.push((ranks, new_facets.clone()));
+					output_facets.push(new_facets.clone());
+            if now.elapsed().as_millis() > DELAY && print_faceting_count {
+                print!("{}{} facets found", CL, output.len());
+                std::io::stdout().flush().unwrap();
+                now = Instant::now();
+            }
+			}
 
                 if let Some(max) = max_per_hyperplane {
-                    if output.len() >= max {
+                    if output.len() + skipped >= max {
                         break 'l;
                     }
                 }
@@ -854,7 +991,8 @@ impl Concrete {
         file_path: String,
         r: bool,
         exotic: bool,
-        exotic_elements: bool
+        exotic_elements: bool,
+		uniform: bool
     ) -> Vec<(Concrete, Option<String>)> {
         let rank = self.rank();
         let mut now = Instant::now();
@@ -1173,7 +1311,7 @@ impl Concrete {
             }
 
             let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-                faceting_subdim(rank-1, hp, points, new_stabilizer, min_edge_length, max_edge_length, max_per_hyperplane, include_compound_elements, exotic_elements);
+                faceting_subdim(rank-1, hp, points, new_stabilizer, min_edge_length, max_edge_length, max_per_hyperplane, include_compound_elements, exotic_elements, true, uniform);
 
             let mut possible_facets_global_row = Vec::new();
             for f in &possible_facets_row {
@@ -1197,7 +1335,8 @@ impl Concrete {
             ridges.push(ridges_row);
             ff_counts.push(ff_counts_row);
 
-            println!("{}: {} facets, {} verts, {} copies", idx, possible_facets_row.len(), hp_v.len(), orbit.2);
+            println!("{}{}: {} facets, {} verts, {} copies", CL, idx, possible_facets_row.len(), hp_v.len(), orbit.2);
+            std::io::stdout().flush().unwrap();
         }
 
         println!("\nComputing ridges...");
@@ -1282,17 +1421,18 @@ impl Concrete {
                         r_i_o_row_row.push(orbit_idx);
                         ridge_counts.push(count);
                         orbit_idx += 1;
+						
+						if now.elapsed().as_millis() > DELAY {
+							print!("{}{}/{} hp, {} ridges", CL, hp_i + 1, hyperplane_orbits.len(), ridge_orbits.len());
+							std::io::stdout().flush().unwrap();
+							now = Instant::now();
+						}
                     }
                 }
                 r_i_o_row.push(r_i_o_row_row);
             }
             ridge_idx_orbits.push(r_i_o_row);
             hp_i += 1;
-            if now.elapsed().as_millis() > DELAY {
-                print!("{}{}/{} hp, {} ridges", CL, hp_i + 1, hyperplane_orbits.len(), ridge_orbits.len());
-                std::io::stdout().flush().unwrap();
-                now = Instant::now();
-            }
         }
 
         print!("{}{}/{} hp, {} ridges", CL, hp_i, hyperplane_orbits.len(), ridge_orbits.len());

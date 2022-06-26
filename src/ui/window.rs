@@ -1575,9 +1575,6 @@ pub struct FacetingSettings {
     /// Whether to include the facet numbers in the name.
     pub label_facets: bool,
 
-    /// Only use uniform or semiuniform facets.
-    pub uniform: bool,
-
     /// Whether to save the facetings in memory.
     pub save: bool,
 

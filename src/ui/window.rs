@@ -1817,12 +1817,6 @@ impl MemoryWindow for FacetingSettings {
         );
 
         ui.separator();
-
-        ui.add(
-            egui::Checkbox::new(&mut self.uniform, "Only uniform/semiuniform facets")
-        );
-
-        ui.separator();
         
         ui.add(
             egui::Checkbox::new(&mut self.compounds, "Include trivial compounds")

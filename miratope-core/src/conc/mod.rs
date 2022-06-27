@@ -172,6 +172,19 @@ impl Polytope for Concrete {
         ))
     }
 
+    fn other_skew_with(&mut self, flag: Flag) -> Option<Self> {
+        let vertices = self.abs.other_skew_vertices(flag)?;
+        let n = vertices.len();
+
+        Some(Self::new(
+            vertices
+                .into_iter()
+                .map(|idx| self.vertices[idx].clone())
+                .collect(),
+            Abstract::polygon(n),
+        ))
+    }
+
     /// "Appends" a polytope into another, creating a compound polytope.
     ///
     /// # Panics

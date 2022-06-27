@@ -610,6 +610,21 @@ pub fn show_top_panel(
                     }
                 }
 
+                if ui.button("Other skew polygon").clicked() {
+                    if let Some(mut p) = query.iter_mut().next() {
+                        p.element_sort();
+                        let flag = p.first_flag();
+                        match p.other_skew_with(flag) {
+                            Some(q) => {
+                                *p = q;
+                                poly_name.0 = format!("Other skew polygon of {}", poly_name.0);
+                                println!("Other skew polygon succeeded.")
+                            }
+                            None => eprintln!("Other skew polygon failed."),
+                        }
+                    }
+                }
+
                 ui.separator();
 
                 // Makes a pyramid out of the current polytope.

@@ -701,6 +701,10 @@ impl Polytope for Abstract {
         Some(Self::polygon(self.petrie_polygon_vertices(flag)?.len()))
     }
 
+    fn other_skew_with(&mut self, flag: Flag) -> Option<Self> {
+        Some(Self::polygon(self.other_skew_vertices(flag)?.len()))
+    }
+
     /// Builds an [antiprism](https://polytope.miraheze.org/wiki/Antiprism)
     /// based on a given polytope. Use [`Self::antiprism`] instead, as this
     /// method can never fail.

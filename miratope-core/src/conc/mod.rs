@@ -686,7 +686,7 @@ pub trait ConcretePolytope: Polytope {
         }
 
         Some(Hypersphere {
-            squared_radius: (&center - first_vertex).norm(),
+            squared_radius: (&center - first_vertex).norm_squared(),
             center,
         })
     }

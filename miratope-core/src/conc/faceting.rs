@@ -1620,6 +1620,7 @@ impl Concrete {
         let mut output = Vec::new();
         let mut used_facets = HashMap::new(); // used for outputting the facets at the end if `save_facets` is `true`.
         let mut faceting_idx = 0; // We used to use `output.len()` but this doesn't work if you skip outputting the polytopes.
+        let num_facetings = output_facets.len();
 
         for facets in output_facets {
             if !save && !save_facets {
@@ -1627,7 +1628,7 @@ impl Concrete {
                 for facet in &facets {
                     facets_fmt.push_str(&format!(" ({},{})", facet.0, facet.1));
                 }
-                println!("Faceting {}:{}", faceting_idx, facets_fmt);
+                println!("Faceting {}/{}:{}", faceting_idx + 1, num_facetings, facets_fmt);
 
                 faceting_idx += 1;
                 continue
@@ -1651,7 +1652,7 @@ impl Concrete {
                     for facet in &facets {
                         facets_fmt.push_str(&format!(" ({},{})", facet.0, facet.1));
                     }
-                    println!("Faceting {}:{}", faceting_idx, facets_fmt);
+                    println!("Faceting {}/{}:{}", faceting_idx + 1, num_facetings, facets_fmt);
 
                     faceting_idx += 1;
                     continue
@@ -1873,7 +1874,7 @@ impl Concrete {
                         }
                     }
                     
-                    println!("Faceting {}:{}{}", faceting_idx, facets_fmt, fissary_status);
+                    println!("Faceting {}/{}:{}{}", faceting_idx + 1, num_facetings, facets_fmt, fissary_status);
 
                     faceting_idx += 1;
                 }

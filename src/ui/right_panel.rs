@@ -218,7 +218,11 @@ pub fn show_right_panel(
                                     if let Some(mut p) = query.iter_mut().next() {
                                         if let Some(mut element) = poly.element(r,i) {
                                             element.flatten();
-                                            element.recenter();
+                                            if let Some(sphere) = element.circumsphere() {
+                                                element.recenter_with(&sphere.center);
+                                            } else {
+                                                element.recenter();
+                                            }
                                             *p = element;
                                             poly_name.0 = format!("{} of {}",
                                             if r >= EL_NAMES_SINGULAR.len() {"".to_string()}

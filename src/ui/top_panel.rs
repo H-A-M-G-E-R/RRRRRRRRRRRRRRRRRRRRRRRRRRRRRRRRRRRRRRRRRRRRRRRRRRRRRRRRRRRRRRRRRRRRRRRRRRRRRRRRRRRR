@@ -810,6 +810,7 @@ pub fn show_top_panel(
                             faceting_settings.exclude_hemis,
                             if faceting_settings.max_facet_types == 0 {None} else {Some(faceting_settings.max_facet_types)},
                             if faceting_settings.max_per_hyperplane == 0 {None} else {Some(faceting_settings.max_per_hyperplane)},
+                            if faceting_settings.min_vertices_per_hyperplane == 0 {None} else {Some(faceting_settings.min_vertices_per_hyperplane)},
                             if faceting_settings.max_vertices_per_hyperplane == 0 {None} else {Some(faceting_settings.max_vertices_per_hyperplane)},
                             if faceting_settings.do_kept_vertex_orbit {Some(faceting_settings.kept_vertex_orbit)} else {None},
                             if faceting_settings.min_hyperplane_copies == 0 {None} else {Some(faceting_settings.min_hyperplane_copies)},

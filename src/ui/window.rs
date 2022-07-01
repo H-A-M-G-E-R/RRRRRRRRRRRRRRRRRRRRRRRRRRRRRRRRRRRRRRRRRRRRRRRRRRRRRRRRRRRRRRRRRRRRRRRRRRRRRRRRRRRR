@@ -1514,6 +1514,9 @@ pub struct FacetingSettings {
     /// The maximum number of facets generated in each hyperplane, to prevent combinatorial explosion. 0 for no limit.
     pub max_per_hyperplane: usize,
 
+    /// The minimum number of vertices per hyperplane. 0 for no limit.
+    pub min_vertices_per_hyperplane: usize,
+
     /// The maximum number of vertices per hyperplane. 0 for no limit.
     pub max_vertices_per_hyperplane: usize,
 
@@ -1603,6 +1606,7 @@ impl Default for FacetingSettings {
             slot: Slot::default(),
             max_facet_types: 0,
             max_per_hyperplane: 0,
+            min_vertices_per_hyperplane: 0,
             max_vertices_per_hyperplane: 0,
             do_kept_vertex_orbit: false,
             kept_vertex_orbit: 0,
@@ -1664,6 +1668,14 @@ impl MemoryWindow for FacetingSettings {
             ui.add(
                 egui::DragValue::new(&mut self.max_per_hyperplane)
                     .speed(200)
+                    .clamp_range(0..=usize::MAX)
+            );
+        });
+        ui.horizontal(|ui| {
+            ui.label("Min vertices per hyperplane");
+            ui.add(
+                egui::DragValue::new(&mut self.min_vertices_per_hyperplane)
+                    .speed(0.02)
                     .clamp_range(0..=usize::MAX)
             );
         });

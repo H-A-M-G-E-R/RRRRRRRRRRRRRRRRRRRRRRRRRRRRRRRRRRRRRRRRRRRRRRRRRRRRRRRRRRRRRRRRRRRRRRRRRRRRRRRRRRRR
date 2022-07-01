@@ -1014,6 +1014,7 @@ impl Concrete {
         exclude_hemis: bool,
         noble: Option<usize>,
         max_per_hyperplane: Option<usize>,
+        min_vertices_per_hyperplane: Option<usize>,
         max_vertices_per_hyperplane: Option<usize>,
         kept_vertex_orbit: Option<usize>,
         min_hyperplane_copies: Option<usize>,
@@ -1233,6 +1234,11 @@ impl Concrete {
                                         break 'c;
                                     }
                                 }
+                            }
+                        }
+                        if let Some(v_h) = min_vertices_per_hyperplane {
+                            if hyperplane_vertices.len() < v_h {
+                                break
                             }
                         }
                         hyperplane_vertices.sort_unstable();

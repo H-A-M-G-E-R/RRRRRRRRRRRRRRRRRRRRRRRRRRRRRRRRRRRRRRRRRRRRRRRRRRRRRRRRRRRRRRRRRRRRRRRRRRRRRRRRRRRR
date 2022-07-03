@@ -1926,6 +1926,13 @@ impl Concrete {
                     }
 
                     if save {
+                        if r {
+                            if fissary_status != "" {
+                                println!("Faceting {}/{}:{}{}", faceting_idx + 1, num_facetings, facets_fmt, fissary_status);
+                                faceting_idx += 1;
+                                continue
+                            }
+                        }
                         if save_to_file {
                             let mut path = PathBuf::from(&file_path);
                             path.push(format!("{}.off",
@@ -1935,47 +1942,22 @@ impl Concrete {
                                     format!("faceting {}{}", faceting_idx, fissary_status)
                                 }
                             ));
-                            if r {
-                                if fissary_status == "" {
-                                    let mut file = match File::create(&path) {
-                                        Ok(file) => file,
-                                        Err(why) => panic!("couldn't create {}: {}", path.display(), why),
-                                    };
-                                    match file.write_all(OffWriter::new(&poly, OffOptions::default()).build().unwrap().as_bytes()) {
-                                        Err(why) => panic!("couldn't write to {}: {}", path.display(), why),
-                                        Ok(_) => (),
-                                    }
-                                }
-                            } else {
-                                let mut file = match File::create(&path) {
-                                    Ok(file) => file,
-                                    Err(why) => panic!("couldn't create {}: {}", path.display(), why),
-                                };
-                                match file.write_all(OffWriter::new(&poly, OffOptions::default()).build().unwrap().as_bytes()) {
-                                    Err(why) => panic!("couldn't write to {}: {}", path.display(), why),
-                                    Ok(_) => (),
-                                }
+                            let mut file = match File::create(&path) {
+                                Ok(file) => file,
+                                Err(why) => panic!("couldn't create {}: {}", path.display(), why),
+                            };
+                            match file.write_all(OffWriter::new(&poly, OffOptions::default()).build().unwrap().as_bytes()) {
+                                Err(why) => panic!("couldn't write to {}: {}", path.display(), why),
+                                Ok(_) => (),
                             }
                         } else {
-                            if r {
-                                if fissary_status == "" {
-                                    output.push((poly.clone(), Some(
-                                        if label_facets {
-                                            format!("faceting {} -{}{}", faceting_idx, facets_fmt, fissary_status)
-                                        } else {
-                                            format!("faceting {}{}", faceting_idx, fissary_status)
-                                        }
-                                    )));
+                            output.push((poly.clone(), Some(
+                                if label_facets {
+                                    format!("faceting {} -{}{}", faceting_idx, facets_fmt, fissary_status)
+                                } else {
+                                    format!("faceting {}{}", faceting_idx, fissary_status)
                                 }
-                            } else {
-                                output.push((poly.clone(), Some(
-                                    if label_facets {
-                                        format!("faceting {} -{}{}", faceting_idx, facets_fmt, fissary_status)
-                                    } else {
-                                        format!("faceting {}{}", faceting_idx, fissary_status)
-                                    }
-                                )));
-                            }
+                            )));
                         }
                     }
                     if save_facets {

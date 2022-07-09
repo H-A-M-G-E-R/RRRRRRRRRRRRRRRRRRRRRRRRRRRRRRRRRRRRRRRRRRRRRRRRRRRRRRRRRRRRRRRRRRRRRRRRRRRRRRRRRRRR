@@ -1289,14 +1289,14 @@ impl Concrete {
                             }
                         }
                         if is_new {
+                            checked.insert(hyperplane_vertices.clone());
+                            hyperplane_orbits.push((hyperplane, hyperplane_vertices, counting.len()));
                             if let Some(mhpo) = max_hyperplane_orbits {
                                 // Hyperplane orbits increment only once at a time.
                                 if hyperplane_orbits.len() == mhpo {
                                     break 'aa;
                                 }
                             }
-                            checked.insert(hyperplane_vertices.clone());
-                            hyperplane_orbits.push((hyperplane, hyperplane_vertices, counting.len()));
                         }
                         if rank <= 3 {
                             break 'b;

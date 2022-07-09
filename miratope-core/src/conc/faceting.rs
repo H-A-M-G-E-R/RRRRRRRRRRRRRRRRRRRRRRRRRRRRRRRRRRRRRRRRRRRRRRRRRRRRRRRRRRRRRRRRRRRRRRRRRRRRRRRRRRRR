@@ -1037,7 +1037,8 @@ impl Concrete {
         r: bool,
         exotic: bool,
         exotic_elements: bool,
-		uniform: bool
+		uniform: bool,
+        hoshostaz: bool
     ) -> Vec<(Concrete, Option<String>)> {
         let rank = self.rank();
         let mut now = Instant::now();
@@ -1226,6 +1227,11 @@ impl Concrete {
                                 break
                             }
                         }
+                        if hoshostaz {
+                            if (inradius - 0.5).abs() < f64::EPS || (inradius - 0.56694670951384084082177480435127).abs() < f64::EPS {
+                                break
+                            }
+                        }
 
                         let mut hyperplane_vertices = Vec::new();
                         for (idx, v) in vertices.iter().enumerate() {
@@ -1245,6 +1251,11 @@ impl Concrete {
                         }
                         if let Some(v_h) = min_vertices_per_hyperplane {
                             if hyperplane_vertices.len() < v_h {
+                                break
+                            }
+                        }
+                        if hoshostaz {
+                            if hyperplane_vertices.len() != 35 && hyperplane_vertices.len() != 36 {
                                 break
                             }
                         }

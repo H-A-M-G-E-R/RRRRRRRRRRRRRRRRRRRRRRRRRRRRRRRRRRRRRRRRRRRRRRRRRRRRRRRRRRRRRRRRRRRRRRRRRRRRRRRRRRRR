@@ -368,7 +368,7 @@ fn faceting_subdim(
     let mut hyperplane_orbits = Vec::new();
     let mut checked = HashSet::<Vec<usize>>::new();
 
-    for pair_orbit in pair_orbits {
+    for (idx, pair_orbit) in pair_orbits.iter().enumerate() {
         let rep = &pair_orbit[0];
 
         if rep[1]+rank-2 > points.len() {
@@ -381,6 +381,12 @@ fn faceting_subdim(
         }
         'b: loop {
             'c: loop {
+                if now.elapsed().as_millis() > DELAY && print_faceting_count {
+                    print!("{}", CL);
+                    print!("{}edge orbit {}, new verts {:?}, {} hyperplane orbits", CL, idx, new_vertices, hyperplane_orbits.len());
+                    std::io::stdout().flush().unwrap();
+                    now = Instant::now();
+                }
                 // WLOG checks if the vertices are all the right distance away from the first vertex.
                 for (v_i, v) in new_vertices.iter().enumerate() {
                     let edge_length = (&points[*v].0-&points[rep[0]].0).norm();
@@ -1019,6 +1025,7 @@ impl Concrete {
         kept_vertex_orbit: Option<usize>,
         min_hyperplane_copies: Option<usize>,
         max_hyperplane_copies: Option<usize>,
+        max_hyperplane_orbits: Option<usize>,
         include_compounds: bool,
         include_compound_elements: bool,
         mark_fissary: bool,
@@ -1145,7 +1152,7 @@ impl Concrete {
 
         let mut dbg_count: u64 = 0;
 
-        for (idx, pair_orbit) in pair_orbits.iter().enumerate() {
+        'aa: for (idx, pair_orbit) in pair_orbits.iter().enumerate() {
             let rep = &pair_orbit[0];
 
             if rep[1]+rank-2 > vertices.len() {
@@ -1271,6 +1278,12 @@ impl Concrete {
                             }
                         }
                         if is_new {
+                            if let Some(mhpo) = max_hyperplane_orbits {
+                                // Hyperplane orbits increment only once at a time.
+                                if hyperplane_orbits.len() == mhpo {
+                                    break 'aa;
+                                }
+                            }
                             checked.insert(hyperplane_vertices.clone());
                             hyperplane_orbits.push((hyperplane, hyperplane_vertices, counting.len()));
                         }

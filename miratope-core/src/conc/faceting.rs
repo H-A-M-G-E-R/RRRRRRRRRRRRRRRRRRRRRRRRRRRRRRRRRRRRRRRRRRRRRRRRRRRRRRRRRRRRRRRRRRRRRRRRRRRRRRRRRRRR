@@ -1254,11 +1254,6 @@ impl Concrete {
                                 break
                             }
                         }
-                        if hoshostaz {
-                            if hyperplane_vertices.len() != 35 && hyperplane_vertices.len() != 36 {
-                                break
-                            }
-                        }
                         hyperplane_vertices.sort_unstable();
 
                         // Check if the hyperplane has been found already.

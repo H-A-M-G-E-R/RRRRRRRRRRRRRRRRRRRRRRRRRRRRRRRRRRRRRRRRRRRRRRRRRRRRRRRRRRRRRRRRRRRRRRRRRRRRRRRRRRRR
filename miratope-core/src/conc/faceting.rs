@@ -234,7 +234,8 @@ fn faceting_subdim(
     include_compounds: bool,
     exotic: bool,
     uniform: bool,
-    print_faceting_count: bool
+    print_faceting_count: bool,
+    hoshostaz: bool
 ) ->
     (Vec<(Ranks, Vec<(usize, usize)>)>, // Vec of facetings, along with the facet types of each of them
     Vec<usize>, // Counts of each hyperplane orbit
@@ -403,6 +404,15 @@ fn faceting_subdim(
                         }
                     }
                 }
+                if hoshostaz {
+                    for (v_i, v) in new_vertices.iter().enumerate() {
+                        let edge_length = (&points[*v].0-&points[rep[1]].0).norm();
+                        if (edge_length - 1.).abs() > f64::EPS {
+                            update = v_i;
+                            break 'c;
+                        }
+                    }
+                }
                 // We start with a pair and add enough vertices to define a hyperplane.
                 let mut tuple = rep.clone();
                 tuple.append(&mut new_vertices.clone());
@@ -516,7 +526,7 @@ fn faceting_subdim(
         }
 
         let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), min_edge_length, max_edge_length, max_per_hyperplane, include_compounds, exotic, uniform, false);
+            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), min_edge_length, max_edge_length, max_per_hyperplane, include_compounds, exotic, uniform, false, false);
 
         let mut possible_facets_global_row = Vec::new();
         for f in &possible_facets_row {
@@ -1228,7 +1238,7 @@ impl Concrete {
                             }
                         }
                         if hoshostaz {
-                            if (inradius - 0.5).abs() < f64::EPS || (inradius - 0.56694670951384084082177480435127).abs() < f64::EPS {
+                            if (inradius - 0.5).abs() > f64::EPS && (inradius - 0.56694670951384084082177480435127).abs() > f64::EPS {
                                 break
                             }
                         }
@@ -1289,6 +1299,11 @@ impl Concrete {
                             if let Some(mhpo) = max_hyperplane_orbits {
                                 // Hyperplane orbits increment only once at a time.
                                 if hyperplane_orbits.len() == mhpo {
+                                    break 'aa;
+                                }
+                            }
+                            if hoshostaz {
+                                if hyperplane_orbits.len() == 4 {
                                     break 'aa;
                                 }
                             }
@@ -1373,7 +1388,7 @@ impl Concrete {
             }
 
             let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-                faceting_subdim(rank-1, hp, points, new_stabilizer, min_edge_length, max_edge_length, max_per_hyperplane, include_compound_elements, exotic_elements, uniform, true);
+                faceting_subdim(rank-1, hp, points, new_stabilizer, min_edge_length, max_edge_length, max_per_hyperplane, include_compound_elements, exotic_elements, uniform, true, hoshostaz);
 
             let mut possible_facets_global_row = Vec::new();
             for f in &possible_facets_row {

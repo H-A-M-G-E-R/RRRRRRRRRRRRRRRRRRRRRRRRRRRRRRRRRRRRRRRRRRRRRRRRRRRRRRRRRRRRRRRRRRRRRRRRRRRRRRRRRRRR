@@ -1682,8 +1682,7 @@ impl MemoryWindow for FacetingSettings {
                     .speed(0.02)
                     .clamp_range(0..=usize::MAX)
             );
-        });
-        ui.horizontal(|ui| {
+            
             ui.label("Max vertices per hyperplane");
             ui.add(
                 egui::DragValue::new(&mut self.max_vertices_per_hyperplane)
@@ -1715,8 +1714,7 @@ impl MemoryWindow for FacetingSettings {
                     .speed(0.02)
                     .clamp_range(0..=usize::MAX)
             );
-        });
-        ui.horizontal(|ui| {
+
             ui.label("Max hyperplane copies per orbit");
             ui.add(
                 egui::DragValue::new(&mut self.max_hyperplane_copies)
@@ -1728,10 +1726,9 @@ impl MemoryWindow for FacetingSettings {
 
         ui.label("Group:");
 
-        ui.radio_value(&mut self.group, GroupEnum2::Chiral(false), "Full group");
-        ui.radio_value(&mut self.group, GroupEnum2::Chiral(true), "Chiral subgroup");
-
         ui.horizontal(|ui| {
+            ui.radio_value(&mut self.group, GroupEnum2::Chiral(false), "Full group");
+            ui.radio_value(&mut self.group, GroupEnum2::Chiral(true), "Chiral subgroup");
             ui.radio_value(&mut self.group, GroupEnum2::FromSlot(self.slot), "From other polytope:");
                 
             const SELECT: &str = "Select";
@@ -1804,9 +1801,7 @@ impl MemoryWindow for FacetingSettings {
                 egui::DragValue::new(&mut self.min_edge_length).clamp_range(0.0..=Float::MAX).speed(0.01)
             );
             ui.label("Min edge length");
-        });
 
-        ui.horizontal(|ui| {
             ui.add(
                 egui::Checkbox::new(&mut self.do_max_edge_length, "")
             );
@@ -1824,9 +1819,7 @@ impl MemoryWindow for FacetingSettings {
                 egui::DragValue::new(&mut self.min_inradius).clamp_range(0.0..=Float::MAX).speed(0.001)
             );
             ui.label("Min inradius");
-        });
 
-        ui.horizontal(|ui| {
             ui.add(
                 egui::Checkbox::new(&mut self.do_max_inradius, "")
             );
@@ -1841,14 +1834,15 @@ impl MemoryWindow for FacetingSettings {
         );
 
         ui.separator();
-        
-        ui.add(
-            egui::Checkbox::new(&mut self.compounds, "Include trivial compounds")
-        );
-
-        ui.add(
-            egui::Checkbox::new(&mut self.compound_elements, "Include trivial compound elements")
-        );
+        ui.horizontal(|ui| {
+            ui.add(
+                egui::Checkbox::new(&mut self.compounds, "Include trivial compounds")
+            );
+    
+            ui.add(
+                egui::Checkbox::new(&mut self.compound_elements, "Include trivial compound elements")
+            );
+        });
 
         ui.add(
             egui::Checkbox::new(&mut self.mark_fissary, "Mark compounds/fissaries")
@@ -1862,27 +1856,30 @@ impl MemoryWindow for FacetingSettings {
             egui::Checkbox::new(&mut self.uniform, "Only uniform/semiuniform facets")
         );
 
-        ui.add(
-            egui::Checkbox::new(&mut self.exotic, "Include exotics")
-        );
-
-        ui.add(
-            egui::Checkbox::new(&mut self.exotic_elements, "Include exotic elements")
-        );
+        ui.horizontal(|ui| {
+            ui.add(
+                egui::Checkbox::new(&mut self.exotic, "Include exotics")
+            );
+    
+            ui.add(
+                egui::Checkbox::new(&mut self.exotic_elements, "Include exotic elements")
+            );
+        });
 
         ui.separator();
 
-        ui.add(
-            egui::Checkbox::new(&mut self.save, "Save facetings")
-        );
-
-        ui.add(
-            egui::Checkbox::new(&mut self.save_facets, "Save facets")
-        );
-
-        ui.radio_value(&mut self.save_to_file, false, "Save to memory");
+        ui.horizontal(|ui| {
+            ui.add(
+                egui::Checkbox::new(&mut self.save, "Save facetings")
+            );
+    
+            ui.add(
+                egui::Checkbox::new(&mut self.save_facets, "Save facets")
+            );
+        });
 
         ui.horizontal(|ui| {
+            ui.radio_value(&mut self.save_to_file, false, "Save to memory");
             ui.radio_value(&mut self.save_to_file, true, "Save to file");
             ui.label("Path:");
             ui.add(

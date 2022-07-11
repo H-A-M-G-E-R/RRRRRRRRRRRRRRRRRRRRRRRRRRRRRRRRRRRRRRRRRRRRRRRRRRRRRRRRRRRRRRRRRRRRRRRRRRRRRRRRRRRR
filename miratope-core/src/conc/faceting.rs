@@ -951,6 +951,11 @@ fn faceting_subdim(
                         break 'l;
                     }
                 }
+                if hoshostaz {
+                    if output.len() + skipped > 0 {
+                        break 'l;
+                    }
+                }
 
                 if include_compounds {
                     let t = facets.last().unwrap().clone();
@@ -1303,7 +1308,7 @@ impl Concrete {
                                 }
                             }
                             if hoshostaz {
-                                if hyperplane_orbits.len() == 4 {
+                                if hyperplane_orbits.len() == 3 {
                                     break 'aa;
                                 }
                             }
@@ -1802,7 +1807,9 @@ impl Concrete {
                     continue
                 }
             }
-
+            if hoshostaz {
+                println!("facets");
+            }
             for facet_orbit in facets.clone() {
                 if save_facets {
                     if used_facets.get(&facet_orbit).is_none() {
@@ -1844,7 +1851,9 @@ impl Concrete {
 
             let mut ranks = Ranks::new();
             ranks.push(vec![Element::new(vec![].into(), vec![].into())].into()); // nullitope
-
+            if hoshostaz {
+                println!("vertices");
+            }
             // vertices
             let mut to_new_idx = HashMap::new();
             let mut to_old_idx = Vec::new();
@@ -1871,7 +1880,9 @@ impl Concrete {
                 new_rank.push(Element::new(vec![0].into(), vec![].into()));
             }
             ranks.push(new_rank);
-
+            if hoshostaz {
+                println!("elements");
+            }
             for r in 2..rank-1 { // edges and up
                 let mut subs_to_idx = HashMap::new();
                 let mut idx_to_subs = Vec::new();
@@ -1921,7 +1932,9 @@ impl Concrete {
             ranks.push(new_rank); // facets
     
             ranks.push(vec![Element::new(Subelements::from_iter(0..n_r_len), Superelements::new())].into()); // body
-    
+            if hoshostaz {
+                println!("memory spike?");
+            }
             unsafe {
                 let mut builder = AbstractBuilder::new();
                 for rank in ranks {

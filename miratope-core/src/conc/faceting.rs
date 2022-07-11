@@ -1041,6 +1041,7 @@ impl Concrete {
         min_hyperplane_copies: Option<usize>,
         max_hyperplane_copies: Option<usize>,
         max_hyperplane_orbits: Option<usize>,
+        skew_rank: Option<usize>,
         include_compounds: bool,
         include_compound_elements: bool,
         mark_fissary: bool,
@@ -1055,7 +1056,7 @@ impl Concrete {
 		uniform: bool,
         hoshostaz: bool
     ) -> Vec<(Concrete, Option<String>)> {
-        let rank = self.rank();
+        let rank = if let Some(sr) = skew_rank {sr+1} else {self.rank()};
         let mut now = Instant::now();
 
         if rank < 3 {
@@ -1225,7 +1226,7 @@ impl Concrete {
 
                     let hyperplane = Subspace::from_points(points.iter());
 
-                    if hyperplane.is_hyperplane() {
+                    if hyperplane.rank() == rank - 2 {
                         let inradius = hyperplane.distance(&Point::zeros(self.dim().unwrap()));
                         if let Some(min) = min_inradius {
                             if inradius < min - f64::EPS {

@@ -1601,6 +1601,12 @@ pub struct FacetingSettings {
     /// Whether to include exotic elements.
     pub exotic_elements: bool,
 
+    /// Whether to do skew rank.
+    pub do_skew_rank: bool,
+
+    /// The rank we want to facet a skew polytope on. Example: x6o4o|x3o from a decachoron.
+    pub skew_rank: usize,
+
     pub hoshostaz: bool
 }
 
@@ -1640,6 +1646,8 @@ impl Default for FacetingSettings {
             r: false,
             exotic: false,
             exotic_elements: false,
+            do_skew_rank: false,
+            skew_rank: 3,
             hoshostaz: false
         }
     }
@@ -1867,6 +1875,16 @@ impl MemoryWindow for FacetingSettings {
             ui.add(
                 egui::Checkbox::new(&mut self.exotic_elements, "Include exotic elements")
             );
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(
+                egui::Checkbox::new(&mut self.do_skew_rank, "")
+            );
+            ui.add(
+                egui::DragValue::new(&mut self.skew_rank).clamp_range(0..=usize::MAX).speed(0.02)
+            );
+            ui.label("Skew rank");
         });
 
         ui.separator();

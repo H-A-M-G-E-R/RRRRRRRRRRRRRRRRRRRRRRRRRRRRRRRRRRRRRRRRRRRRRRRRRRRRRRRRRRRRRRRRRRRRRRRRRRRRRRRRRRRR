@@ -816,6 +816,7 @@ pub fn show_top_panel(
                             if faceting_settings.min_hyperplane_copies == 0 {None} else {Some(faceting_settings.min_hyperplane_copies)},
                             if faceting_settings.max_hyperplane_copies == 0 {None} else {Some(faceting_settings.max_hyperplane_copies)},
                             if faceting_settings.max_hyperplane_orbits == 0 {None} else {Some(faceting_settings.max_hyperplane_orbits)},
+                            if faceting_settings.do_skew_rank {Some(faceting_settings.skew_rank)} else {None},
                             faceting_settings.compounds,
                             faceting_settings.compound_elements,
                             faceting_settings.mark_fissary,

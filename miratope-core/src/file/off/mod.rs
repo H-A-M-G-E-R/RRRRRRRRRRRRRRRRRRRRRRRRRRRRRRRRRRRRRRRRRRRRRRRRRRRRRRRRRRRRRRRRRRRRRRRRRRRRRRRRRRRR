@@ -974,6 +974,12 @@ mod tests {
         test_off!("comments", [1, 4, 6, 4, 1])
     }
 
+    /// Checks that a petrie polygon of a tetrahedron has the correct amount of elements.
+    #[test]
+    fn petrie_polygon_of_tet_nums() {
+        test_off!("petrie polygon of tet", [1, 4, 4, 1])
+    }
+
     /// Attempts to parse an OFF file, unwraps it.
     fn unwrap_off(src: &str) {
         Concrete::from_off(src).unwrap();

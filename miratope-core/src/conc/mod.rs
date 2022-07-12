@@ -435,21 +435,21 @@ impl Polytope for Concrete {
             let dim = rank - 1;
             let mut vertices = Vec::with_capacity(rank);
 
-            // Adds all points with a single entry equal to √2/2, and all others
-            // equal to 0.
-            for i in 0..dim {
+            for i in 0..rank {
                 let mut v = Point::zeros(dim);
-                v[i] = f64::HALF_SQRT_2;
+                for n in 1..=dim {
+                    if n > i {
+                        v[n - 1] = -1.0 / ((2 * n * (n + 1)) as f64).fsqrt();
+                    } else if n < i {
+                        v[n - 1] = 0.0;
+                    } else {
+                        v[n - 1] = (n as f64 / (2 * n + 2) as f64).fsqrt()
+                    }
+                }
                 vertices.push(v);
             }
 
-            // Adds the remaining vertex, all of whose coordinates are equal.
-            let dim_f = dim as f64;
-            let a = (1.0 - (dim_f + 1.0).fsqrt()) * f64::HALF_SQRT_2 / dim_f;
-            vertices.push(vec![a; dim].into());
-
-            let mut simplex = Concrete::new(vertices, Abstract::simplex(rank));
-            simplex.recenter();
+            let simplex = Concrete::new(vertices, Abstract::simplex(rank));
             simplex
         }
     }

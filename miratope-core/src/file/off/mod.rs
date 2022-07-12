@@ -6,7 +6,6 @@ use std::{collections::{HashMap, HashSet}, fmt::Display, io::Error as IoError, p
 use crate::{
     abs::{AbstractBuilder, Ranked, SubelementList, Subelements},
     conc::{cycle::CycleList, Concrete},
-    float::Float,
     geometry::Point,
     Polytope, COMPONENTS, ELEMENT_NAMES,
 };
@@ -719,12 +718,7 @@ impl<'a> OffWriter<'a> {
         // Adds the coordinates.
         for v in &self.poly.vertices {
             for c in v {
-                // Preventing generation loss
-                if c.abs() < f64::EPS {
-                    self.push_to_str('0');
-                } else {
-                    self.push_to_str(c);
-                }
+                self.push_to_str(c);
                 self.push(' ');
             }
             self.push('\n');

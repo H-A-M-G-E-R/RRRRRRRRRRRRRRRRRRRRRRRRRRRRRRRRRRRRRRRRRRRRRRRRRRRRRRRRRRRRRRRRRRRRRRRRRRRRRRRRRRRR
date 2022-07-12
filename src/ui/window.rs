@@ -1607,7 +1607,9 @@ pub struct FacetingSettings {
     /// The rank we want to facet a skew polytope on. Example: x6o4o|x3o from a decachoron.
     pub skew_rank: usize,
 
-    pub hoshostaz: bool
+    pub hoshostaz: bool,
+    
+    pub chowar: bool
 }
 
 impl Default for FacetingSettings {
@@ -1648,7 +1650,8 @@ impl Default for FacetingSettings {
             exotic_elements: false,
             do_skew_rank: false,
             skew_rank: 3,
-            hoshostaz: false
+            hoshostaz: false,
+            chowar: false
         }
     }
 }
@@ -1914,6 +1917,10 @@ impl MemoryWindow for FacetingSettings {
 
         ui.add(
             egui::Checkbox::new(&mut self.hoshostaz, "Hoshostaz")
+        );
+
+        ui.add(
+            egui::Checkbox::new(&mut self.chowar, "Chowar")
         );
     }
 }

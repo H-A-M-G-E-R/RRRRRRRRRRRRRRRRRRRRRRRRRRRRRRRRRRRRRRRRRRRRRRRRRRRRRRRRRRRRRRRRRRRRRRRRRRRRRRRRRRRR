@@ -1054,7 +1054,8 @@ impl Concrete {
         exotic: bool,
         exotic_elements: bool,
 		uniform: bool,
-        hoshostaz: bool
+        hoshostaz: bool,
+        chowar: bool
     ) -> Vec<(Concrete, Option<String>)> {
         let rank = if let Some(sr) = skew_rank {sr+1} else {self.rank()};
         let mut now = Instant::now();
@@ -1245,6 +1246,11 @@ impl Concrete {
                         }
                         if hoshostaz {
                             if (inradius - 0.5).abs() > f64::EPS && (inradius - 0.56694670951384084082177480435127).abs() > f64::EPS {
+                                break
+                            }
+                        }
+                        if chowar {
+                            if (inradius - 0.86602540378443864676372317075294).abs() > f64::EPS && (inradius - 1.0).abs() > f64::EPS && (inradius - 1.0206207261596575409155350311275).abs() > f64::EPS && (inradius - 1.0606601717798212866012665431573).abs() > f64::EPS && (inradius - 1.1547005383792515290182975610039).abs() > f64::EPS{
                                 break
                             }
                         }
@@ -1456,61 +1462,63 @@ impl Concrete {
                     // look for possible disentanglement
                     let mut disentangled = None;
 
-                    let mut ridge_vertices_idx = HashSet::new();
+                    if !hoshostaz && !chowar {
+                        let mut ridge_vertices_idx = HashSet::new();
                     
-                    for edge in &ridge[2] {
-                        for sub in &edge.subs {
-                            ridge_vertices_idx.insert(*sub);
-                        }
-                    }
-
-                    let mut ridge_vertices = Vec::new();
-
-                    for idx in &ridge_vertices_idx {
-                        ridge_vertices.push(vertices[*idx].clone());
-                    }
-
-                    let subspace = Subspace::from_points(ridge_vertices.iter());
-                    let mut all_vertices_idx = HashSet::new();
-
-                    for (i, vertex) in vertices.iter().enumerate() {
-                        if subspace.distance(&vertex) < f64::EPS {
-                            all_vertices_idx.insert(i);
-                        }
-                    }
-
-                    if all_vertices_idx.len() > ridge_vertices_idx.len() {
-                        'vmap: for row in vertex_map.iter().skip(1) {
-                            let mut different = false;
-                            for vertex in &ridge_vertices_idx {
-                                if !all_vertices_idx.contains(&row[*vertex]) {
-                                    continue 'vmap;
-                                }
-                                if !ridge_vertices_idx.contains(&row[*vertex]) {
-                                    different = true;
-                                }
+                        for edge in &ridge[2] {
+                            for sub in &edge.subs {
+                                ridge_vertices_idx.insert(*sub);
                             }
-                            if different {
-                                // We found a coplanar copy of the ridge, thus a disentanglement.
-                                let mut new_ridge = ridge.clone();
+                        }
     
-                                let mut new_list = ElementList::new();
-                                for i in 0..new_ridge[2].len() {
-                                    let mut new = Element::new(Subelements::new(), Superelements::new());
-                                    for sub in &ridge[2][i].subs {
-                                        new.subs.push(row[*sub])
+                        let mut ridge_vertices = Vec::new();
+    
+                        for idx in &ridge_vertices_idx {
+                            ridge_vertices.push(vertices[*idx].clone());
+                        }
+    
+                        let subspace = Subspace::from_points(ridge_vertices.iter());
+                        let mut all_vertices_idx = HashSet::new();
+    
+                        for (i, vertex) in vertices.iter().enumerate() {
+                            if subspace.distance(&vertex) < f64::EPS {
+                                all_vertices_idx.insert(i);
+                            }
+                        }
+    
+                        if all_vertices_idx.len() > ridge_vertices_idx.len() {
+                            'vmap: for row in vertex_map.iter().skip(1) {
+                                let mut different = false;
+                                for vertex in &ridge_vertices_idx {
+                                    if !all_vertices_idx.contains(&row[*vertex]) {
+                                        continue 'vmap;
                                     }
-                                    new_list.push(new);
+                                    if !ridge_vertices_idx.contains(&row[*vertex]) {
+                                        different = true;
+                                    }
                                 }
-                                new_ridge[2] = new_list;
-    
-                                disentangled = Some(new_ridge);
-                                break;
+                                if different {
+                                    // We found a coplanar copy of the ridge, thus a disentanglement.
+                                    let mut new_ridge = ridge.clone();
+        
+                                    let mut new_list = ElementList::new();
+                                    for i in 0..new_ridge[2].len() {
+                                        let mut new = Element::new(Subelements::new(), Superelements::new());
+                                        for sub in &ridge[2][i].subs {
+                                            new.subs.push(row[*sub])
+                                        }
+                                        new_list.push(new);
+                                    }
+                                    new_ridge[2] = new_list;
+        
+                                    disentangled = Some(new_ridge);
+                                    break;
+                                }
                             }
-                        }
-                        if let Some(copy) = &disentangled {
-                            let mut compound = ridge.clone();
-                            compound.append(copy);
+                            if let Some(copy) = &disentangled {
+                                let mut compound = ridge.clone();
+                                compound.append(copy);
+                            }
                         }
                     }
 

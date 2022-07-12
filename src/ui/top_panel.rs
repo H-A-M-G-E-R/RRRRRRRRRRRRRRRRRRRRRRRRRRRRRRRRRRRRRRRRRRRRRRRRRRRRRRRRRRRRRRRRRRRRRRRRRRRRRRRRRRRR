@@ -829,7 +829,8 @@ pub fn show_top_panel(
                             faceting_settings.exotic,
                             faceting_settings.exotic_elements,
                             faceting_settings.uniform,
-                            faceting_settings.hoshostaz
+                            faceting_settings.hoshostaz,
+                            faceting_settings.chowar
                         );
                         for faceting in facetings {
                             memory.push(faceting);

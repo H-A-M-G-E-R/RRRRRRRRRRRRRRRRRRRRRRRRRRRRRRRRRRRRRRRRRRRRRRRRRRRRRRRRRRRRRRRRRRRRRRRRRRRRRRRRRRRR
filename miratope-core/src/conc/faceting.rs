@@ -1125,6 +1125,7 @@ impl Concrete {
         println!("\nEnumerating hyperplanes...");
 
         let mut pair_orbits = Vec::new();
+        let mut pair_orbit_lengths = Vec::new();
         let mut checked = vec![vec![false; vertices.len()]; vertices.len()];
         
         for orbit in vertex_orbits {
@@ -1159,11 +1160,16 @@ impl Concrete {
                         }
                     }
                     pair_orbits.push(new_orbit);
+                    pair_orbit_lengths.push(edge_length);
                 }
             }
         }
 
         println!("{} edge orbit{}", pair_orbits.len(), if pair_orbits.len() == 1 {""} else {"s"});
+        for idx in 0..pair_orbits.len() {
+            println!("{}: length {}, {} copies", idx, pair_orbit_lengths[idx], pair_orbits[idx].len());
+        }
+        println!("");
 
         // Enumerate hyperplanes
         let mut hyperplane_orbits = Vec::new();

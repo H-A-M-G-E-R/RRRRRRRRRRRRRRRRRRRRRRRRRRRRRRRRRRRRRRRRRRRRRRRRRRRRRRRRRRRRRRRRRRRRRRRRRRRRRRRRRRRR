@@ -186,6 +186,7 @@ impl FileDialogToken {
     fn new_file_dialog() -> rfd::FileDialog {
         rfd::FileDialog::new()
             .add_filter("OFF File", &["off"])
+            .add_filter("GGB file", &["ggb"])
     }
 
     /// Returns the path given by an open file dialog.

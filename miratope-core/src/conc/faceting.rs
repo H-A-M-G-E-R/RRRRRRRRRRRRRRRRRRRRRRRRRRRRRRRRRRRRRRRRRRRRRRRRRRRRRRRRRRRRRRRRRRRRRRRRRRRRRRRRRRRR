@@ -1956,7 +1956,11 @@ impl Concrete {
                                     format!("faceting {}{}", faceting_idx, fissary_status)
                                 }
                             ));
-                            match &poly.to_path(&path, Default::default()) {
+                            let mut file = match File::create(&path) {
+                                Ok(file) => file,
+                                Err(why) => panic!("couldn't create {}: {}", path.display(), why),
+                            };
+                            match file.write_all(OffWriter::new(&poly, OffOptions::default()).build().unwrap().as_bytes()) {
                                 Err(why) => panic!("couldn't write to {}: {}", path.display(), why),
                                 Ok(_) => (),
                             }

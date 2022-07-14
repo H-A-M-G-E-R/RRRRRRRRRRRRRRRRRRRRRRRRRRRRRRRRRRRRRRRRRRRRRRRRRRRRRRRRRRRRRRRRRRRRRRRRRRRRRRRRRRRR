@@ -1,0 +1,9 @@
+OFF #this
+4 1 #skew
+
+1 1 1 #tet
+1 -1 -1 #petrie polygon #of
+-1 1 -1#tet
+-1 -1 1            
+
+4 0 1 2 3 255 0 0#that

@@ -974,6 +974,12 @@ mod tests {
         test_off!("petrie polygon of tet", [1, 4, 4, 1])
     }
 
+    /// Checks that comments in a skew OFF file are correctly parsed.
+    #[test]
+    fn skew_comments_nums() {
+        test_off!("skew comments", [1, 4, 4, 1])
+    }
+
     /// Attempts to parse an OFF file, unwraps it.
     fn unwrap_off(src: &str) {
         Concrete::from_off(src).unwrap();

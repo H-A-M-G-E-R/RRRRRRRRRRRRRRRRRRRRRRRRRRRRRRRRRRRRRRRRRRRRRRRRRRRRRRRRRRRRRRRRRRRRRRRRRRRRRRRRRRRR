@@ -1609,7 +1609,9 @@ pub struct FacetingSettings {
 
     pub hoshostaz: bool,
     
-    pub chowar: bool
+    pub chowar: bool,
+
+    pub hidhi: bool
 }
 
 impl Default for FacetingSettings {
@@ -1651,7 +1653,8 @@ impl Default for FacetingSettings {
             do_skew_rank: false,
             skew_rank: 3,
             hoshostaz: false,
-            chowar: false
+            chowar: false,
+            hidhi: false
         }
     }
 }
@@ -1921,6 +1924,10 @@ impl MemoryWindow for FacetingSettings {
 
         ui.add(
             egui::Checkbox::new(&mut self.chowar, "Chowar")
+        );
+
+        ui.add(
+            egui::Checkbox::new(&mut self.hidhi, "2-swirldoic uniform hidhi")
         );
     }
 }

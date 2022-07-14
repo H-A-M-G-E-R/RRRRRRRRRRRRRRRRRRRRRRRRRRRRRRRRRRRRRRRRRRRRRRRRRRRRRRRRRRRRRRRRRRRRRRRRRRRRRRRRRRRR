@@ -1055,7 +1055,8 @@ impl Concrete {
         exotic_elements: bool,
 		uniform: bool,
         hoshostaz: bool,
-        chowar: bool
+        chowar: bool,
+        hidhi: bool
     ) -> Vec<(Concrete, Option<String>)> {
         let rank = if let Some(sr) = skew_rank {sr+1} else {self.rank()};
         let mut now = Instant::now();
@@ -1253,6 +1254,9 @@ impl Concrete {
                             if (inradius - 0.86602540378443864676372317075294).abs() > f64::EPS && (inradius - 1.0).abs() > f64::EPS && (inradius - 1.0206207261596575409155350311275).abs() > f64::EPS && (inradius - 1.0606601717798212866012665431573).abs() > f64::EPS && (inradius - 1.1547005383792515290182975610039).abs() > f64::EPS{
                                 break
                             }
+                        }
+                        if hidhi {
+                            if (inradius - 0.5).abs() < f64::EPS {break}
                         }
 
                         let mut hyperplane_vertices = Vec::new();

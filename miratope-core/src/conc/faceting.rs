@@ -992,7 +992,6 @@ fn faceting_subdim(
         }
         output = output_new;
     }
-    output_facets.sort_unstable();
 
     let mut output_ridges = Vec::new();
     for i in possible_facets_global {

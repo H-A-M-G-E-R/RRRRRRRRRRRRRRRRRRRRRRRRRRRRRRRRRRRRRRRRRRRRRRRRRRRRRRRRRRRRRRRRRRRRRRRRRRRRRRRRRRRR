@@ -1599,7 +1599,7 @@ mod tests {
         for n in 1..=6 {
             test_volume(
                 Concrete::orthoplex(n),
-                Some(((2usize.pow((n - 1) as u32)) as f64).fsqrt() / crate::factorial(n - 1) as f64),
+                Some(((1 << (n - 1)) as f64).sqrt() / crate::factorial(n - 1) as f64),
             );
         }
     }

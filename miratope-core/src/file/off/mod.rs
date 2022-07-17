@@ -295,7 +295,9 @@ impl<'a> OffReader<'a> {
         }
 
         // 2-elements go before 1-elements, we're undoing that.
-        el_nums.swap(1, 2);
+        if rank > 2 {
+            el_nums.swap(1, 2);
+        }
 
         Ok(el_nums)
     }
@@ -440,7 +442,6 @@ impl<'a> OffReader<'a> {
         match rank {
             0 => return Ok(Concrete::nullitope()),
             1 => return Ok(Concrete::point()),
-            2 => return Ok(Concrete::dyad()),
             _ => {}
         }
 
@@ -662,7 +663,7 @@ impl<'a> OffWriter<'a> {
 
             if rank == 3 {
                 self.push_str(", Components");
-            } else {
+            } else if rank > 3 {
                 self.push_str(", Faces, Edges");
 
                 for r in 4..rank {

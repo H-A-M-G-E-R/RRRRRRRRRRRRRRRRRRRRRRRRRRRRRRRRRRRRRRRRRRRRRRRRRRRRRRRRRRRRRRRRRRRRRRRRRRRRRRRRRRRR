@@ -3,7 +3,7 @@ members = ["miratope-core", "vec-like"]
 
 [package]
 name = "miratope"
-description = "A polytope renderer and builder."
+description = "A ketchup renderer and builder."
 license = "MIT"
 version = "0.4.7"
 repository = "https://github.com/H-A-M-G-E-R/miratope-rs"

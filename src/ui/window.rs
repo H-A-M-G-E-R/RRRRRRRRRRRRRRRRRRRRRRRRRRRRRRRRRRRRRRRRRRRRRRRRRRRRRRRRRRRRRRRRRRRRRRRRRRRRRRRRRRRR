@@ -1505,6 +1505,9 @@ pub struct FacetingSettings {
     /// Whether the window is open.
     open: bool,
 
+    /// There's some niche settings that are hidden by default to reduce bloat.
+    show_advanced_settings: bool,
+
     /// The slot for the dropdown menu.
     slot: Slot,
 
@@ -1566,6 +1569,9 @@ pub struct FacetingSettings {
     /// The maximum number of hyperplane orbits before quitting enumerating hyperplanes. 0 for no limit.
     pub max_hyperplane_orbits: usize,
 
+    /// Whether to only consider hyperplanes perpendicular to a vertex.
+    pub only_below_vertex: bool,
+
     /// Whether to include trivial compounds (compounds of other full-symmetric facetings).
     pub compounds: bool,
 
@@ -1612,6 +1618,7 @@ impl Default for FacetingSettings {
     fn default() -> Self {
         Self {
             open: false,
+            show_advanced_settings: false,
             slot: Slot::default(),
             max_facet_types: 0,
             max_per_hyperplane: 0,
@@ -1632,6 +1639,7 @@ impl Default for FacetingSettings {
             min_hyperplane_copies: 0,
             max_hyperplane_copies: 0,
             max_hyperplane_orbits: 0,
+            only_below_vertex: false,
             compounds: false,
             compound_elements: false,
             mark_fissary: true,
@@ -1841,6 +1849,12 @@ impl MemoryWindow for FacetingSettings {
             egui::Checkbox::new(&mut self.exclude_hemis, "Exclude hemis")
         );
 
+        if self.show_advanced_settings {
+            ui.add(
+                egui::Checkbox::new(&mut self.only_below_vertex, "Only hyperplanes perpendicular to a vertex")
+            );
+        }
+
         ui.separator();
         ui.horizontal(|ui| {
             ui.add(
@@ -1864,25 +1878,27 @@ impl MemoryWindow for FacetingSettings {
             egui::Checkbox::new(&mut self.uniform, "Only uniform/semiuniform facets")
         );
 
-        ui.horizontal(|ui| {
-            ui.add(
-                egui::Checkbox::new(&mut self.exotic, "Include exotics")
-            );
+        if self.show_advanced_settings {
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::Checkbox::new(&mut self.exotic, "Include exotics")
+                );
     
-            ui.add(
-                egui::Checkbox::new(&mut self.exotic_elements, "Include exotic elements")
-            );
-        });
+                ui.add(
+                    egui::Checkbox::new(&mut self.exotic_elements, "Include exotic elements")
+                );
+            });
 
-        ui.horizontal(|ui| {
-            ui.add(
-                egui::Checkbox::new(&mut self.do_skew_rank, "")
-            );
-            ui.add(
-                egui::DragValue::new(&mut self.skew_rank).clamp_range(0..=usize::MAX).speed(0.02)
-            );
-            ui.label("Skew rank");
-        });
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::Checkbox::new(&mut self.do_skew_rank, "")
+                );
+                ui.add(
+                    egui::DragValue::new(&mut self.skew_rank).clamp_range(0..=usize::MAX).speed(0.02)
+                );
+                ui.label("Skew rank");
+            });
+        }
 
         ui.separator();
 
@@ -1908,5 +1924,11 @@ impl MemoryWindow for FacetingSettings {
         ui.add(
             egui::Checkbox::new(&mut self.r, "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR")
         );
+
+        ui.separator();
+
+        if ui.button(if self.show_advanced_settings {"Hide advanced settings"} else {"Show advanced settings"}).clicked() {
+            self.show_advanced_settings = !self.show_advanced_settings;
+        }
     }
 }

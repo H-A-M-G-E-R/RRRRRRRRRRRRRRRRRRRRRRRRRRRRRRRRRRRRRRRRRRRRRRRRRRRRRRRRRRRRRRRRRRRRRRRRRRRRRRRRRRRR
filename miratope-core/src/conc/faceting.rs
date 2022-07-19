@@ -1114,8 +1114,7 @@ impl Concrete {
         let mut hyperplane_orbits = Vec::new();
 
         if only_below_vertex {
-            'ab: loop {
-            for v_orbit in &vertex_orbits {
+            'ab: for v_orbit in &vertex_orbits {
                 let mut map = BTreeMap::<OrderedFloat<f64>, Vec<usize>>::new();
                 let rep = v_orbit[0];
                 let point = &vertices[rep];
@@ -1253,7 +1252,6 @@ impl Concrete {
                     }
                 }
             }
-            }
         }
         else {
             let mut pair_orbits = Vec::new();
@@ -1304,7 +1302,6 @@ impl Concrete {
             println!("");
     
             // Enumerate hyperplanes
-            let mut hyperplane_orbits = Vec::new();
             let mut checked = HashSet::new();
     
             let mut dbg_count: u64 = 0;
@@ -1328,6 +1325,7 @@ impl Concrete {
                             now = Instant::now();
                         }
                         dbg_count += 1;
+                        
                         // WLOG checks if the vertices are all the right distance away from the first vertex.
                         for (v_i, v) in new_vertices.iter().enumerate() {
                             let edge_length = (&vertices[*v]-&vertices[rep[0]]).norm();

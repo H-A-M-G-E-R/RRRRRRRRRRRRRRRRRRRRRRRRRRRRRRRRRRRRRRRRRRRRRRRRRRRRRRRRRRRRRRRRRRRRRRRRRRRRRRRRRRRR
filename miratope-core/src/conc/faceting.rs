@@ -1160,29 +1160,6 @@ impl Concrete {
                         now = Instant::now();
                     }
                     dbg_count += 1;
-                    // WLOG checks if the vertices are all the right distance away from the first vertex.
-                    for v in &list[1..] {
-                        let edge_length = (&vertices[*v]-&vertices[list[0]]).norm();
-                        if let Some(min) = min_edge_length {
-                            if edge_length < min - f64::EPS {
-                                continue 'd;
-                            }
-                        }
-                        if let Some(max) = max_edge_length {
-                            if edge_length > max + f64::EPS {
-                                continue 'd;
-                            }
-                        }
-                    }
-
-                    if let Some(k_v_o) = kept_vertex_orbit {
-                        // Checks if the vertices' orbits match.
-                        for v in &list[1..] {
-                            if orbit_of_vertex[*v] != k_v_o {
-                                continue 'd;
-                            }
-                        }
-                    }
 
                     // We define a hyperplane from the list of vertices.
                     let points = list.iter().map(|x| &vertices[*x]);

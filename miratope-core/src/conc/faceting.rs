@@ -1138,7 +1138,7 @@ impl Concrete {
                 let point = &vertices[rep];
 
                 for (idx, vertex) in vertices.iter().enumerate() {
-                    let dot = OrderedFloat(vertex.dot(point));
+                    let dot = OrderedFloat((vertex.dot(point)*100000.).round());
                     if let Some(list) = map.get_mut(&dot) {
                         list.push(idx);
                     } else {

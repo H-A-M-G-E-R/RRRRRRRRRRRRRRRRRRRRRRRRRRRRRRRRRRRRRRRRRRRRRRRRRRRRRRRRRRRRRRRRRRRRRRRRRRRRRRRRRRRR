@@ -1183,19 +1183,6 @@ impl Concrete {
                                 continue
                             }
                         }
-                        if hoshostaz {
-                            if (inradius - 0.5).abs() > f64::EPS && (inradius - 0.56694670951384084082177480435127).abs() > f64::EPS {
-                                break
-                            }
-                        }
-                        if chowar {
-                            if (inradius - 0.86602540378443864676372317075294).abs() > f64::EPS && (inradius - 1.0).abs() > f64::EPS && (inradius - 1.0206207261596575409155350311275).abs() > f64::EPS && (inradius - 1.0606601717798212866012665431573).abs() > f64::EPS && (inradius - 1.1547005383792515290182975610039).abs() > f64::EPS{
-                                break
-                            }
-                        }
-                        if hidhi {
-                            if (inradius - 0.5).abs() < f64::EPS {break}
-                        }
 
                         let mut hyperplane_vertices = Vec::new();
                         for (idx, v) in vertices.iter().enumerate() {
@@ -1254,11 +1241,6 @@ impl Concrete {
                                 // Hyperplane orbits increment only once at a time.
                                 if hyperplane_orbits.len() == mhpo {
                                     break 'ab;
-                                }
-                            }
-                            if hoshostaz {
-                                if hyperplane_orbits.len() == 3 {
-                                    break 'aa;
                                 }
                             }
                         }
@@ -1394,6 +1376,19 @@ impl Concrete {
                                     break
                                 }
                             }
+                            if hoshostaz {
+                                if (inradius - 0.5).abs() > f64::EPS && (inradius - 0.56694670951384084082177480435127).abs() > f64::EPS {
+                                    break
+                                }
+                            }
+                            if chowar {
+                                if (inradius - 0.86602540378443864676372317075294).abs() > f64::EPS && (inradius - 1.0).abs() > f64::EPS && (inradius - 1.0206207261596575409155350311275).abs() > f64::EPS && (inradius - 1.0606601717798212866012665431573).abs() > f64::EPS && (inradius - 1.1547005383792515290182975610039).abs() > f64::EPS{
+                                    break
+                                }
+                            }
+                            if hidhi {
+                                if (inradius - 0.5).abs() < f64::EPS {break}
+                            }
     
                             let mut hyperplane_vertices = Vec::new();
                             for (idx, v) in vertices.iter().enumerate() {
@@ -1451,6 +1446,11 @@ impl Concrete {
                                 if let Some(mhpo) = max_hyperplane_orbits {
                                     // Hyperplane orbits increment only once at a time.
                                     if hyperplane_orbits.len() == mhpo {
+                                        break 'aa;
+                                    }
+                                }
+                                if hoshostaz {
+                                    if hyperplane_orbits.len() == 3 {
                                         break 'aa;
                                     }
                                 }

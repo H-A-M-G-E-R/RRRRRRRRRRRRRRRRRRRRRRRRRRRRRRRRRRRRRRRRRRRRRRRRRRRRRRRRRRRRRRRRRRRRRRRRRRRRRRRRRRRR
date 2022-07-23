@@ -831,7 +831,9 @@ pub fn show_top_panel(
                             faceting_settings.uniform,
                             faceting_settings.hoshostaz,
                             faceting_settings.chowar,
-                            faceting_settings.hidhi
+                            faceting_settings.hidhi,
+                            faceting_settings.sidtid,
+                            faceting_settings.rhom
                         );
                         for faceting in facetings {
                             memory.push(faceting);

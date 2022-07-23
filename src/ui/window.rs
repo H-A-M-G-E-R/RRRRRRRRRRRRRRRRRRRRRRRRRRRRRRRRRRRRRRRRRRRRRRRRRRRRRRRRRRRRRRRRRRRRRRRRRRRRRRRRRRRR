@@ -1617,7 +1617,11 @@ pub struct FacetingSettings {
     
     pub chowar: bool,
 
-    pub hidhi: bool
+    pub hidhi: bool,
+
+    pub sidtid: bool,
+    
+    pub rhom: bool
 }
 
 impl Default for FacetingSettings {
@@ -1662,7 +1666,9 @@ impl Default for FacetingSettings {
             skew_rank: 3,
             hoshostaz: false,
             chowar: false,
-            hidhi: false
+            hidhi: false,
+            sidtid: false,
+            rhom: false
         }
     }
 }
@@ -1868,10 +1874,6 @@ impl MemoryWindow for FacetingSettings {
 
         ui.separator();
 
-        ui.add(
-            egui::Checkbox::new(&mut self.uniform, "Only uniform/semiuniform facets")
-        );
-
         ui.horizontal(|ui| {
             ui.add(
                 egui::Checkbox::new(&mut self.compounds, "Include trivial compounds")
@@ -1951,6 +1953,14 @@ impl MemoryWindow for FacetingSettings {
 
         ui.add(
             egui::Checkbox::new(&mut self.hidhi, "2-swirldoic uniform hidhi")
+        );
+
+        ui.add(
+            egui::Checkbox::new(&mut self.sidtid, "Sidtid")
+        );
+
+        ui.add(
+            egui::Checkbox::new(&mut self.rhom, "Rhom")
         );
         ui.separator();
 

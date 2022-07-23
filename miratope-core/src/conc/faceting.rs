@@ -237,7 +237,9 @@ fn faceting_subdim(
     exotic: bool,
     uniform: bool,
     print_faceting_count: bool,
-    hoshostaz: bool
+    hoshostaz: bool,
+    sidtid: bool,
+    rhom: bool
 ) ->
     (Vec<(Ranks, Vec<(usize, usize)>)>, // Vec of facetings, along with the facet types of each of them
     Vec<usize>, // Counts of each hyperplane orbit
@@ -433,6 +435,16 @@ fn faceting_subdim(
                             hyperplane_vertices.push(idx);
                         }
                     }
+                    if sidtid {
+                        if points.len() == 20 && hyperplane_vertices.len() == 4 {
+                            break
+                        }
+                    }
+                    if rhom {
+                        if points.len() == 20 && hyperplane_vertices.len() != 4 {
+                            break
+                        }
+                    }
                     hyperplane_vertices.sort_unstable();
 
                     // Check if the hyperplane has been found already.
@@ -528,7 +540,7 @@ fn faceting_subdim(
         }
 
         let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), min_edge_length, max_edge_length, max_per_hyperplane, include_compounds, exotic, uniform, false, false);
+            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), min_edge_length, max_edge_length, max_per_hyperplane, include_compounds, exotic, uniform, false, false, false, false);
 
         let mut possible_facets_global_row = Vec::new();
         for f in &possible_facets_row {
@@ -1061,7 +1073,9 @@ impl Concrete {
 		uniform: bool,
         hoshostaz: bool,
         chowar: bool,
-        hidhi: bool
+        hidhi: bool,
+        sidtid: bool,
+        rhom: bool
     ) -> Vec<(Concrete, Option<String>)> {
         let rank = if let Some(sr) = skew_rank {sr+1} else {self.rank()};
         let mut now = Instant::now();
@@ -1536,7 +1550,7 @@ impl Concrete {
             }
 
             let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-                faceting_subdim(rank-1, hp, points, new_stabilizer, min_edge_length, max_edge_length, max_per_hyperplane, include_compound_elements, exotic_elements, uniform, true, hoshostaz);
+                faceting_subdim(rank-1, hp, points, new_stabilizer, min_edge_length, max_edge_length, max_per_hyperplane, include_compound_elements, exotic_elements, uniform, true, hoshostaz, sidtid, rhom);
 
             let mut possible_facets_global_row = Vec::new();
             for f in &possible_facets_row {

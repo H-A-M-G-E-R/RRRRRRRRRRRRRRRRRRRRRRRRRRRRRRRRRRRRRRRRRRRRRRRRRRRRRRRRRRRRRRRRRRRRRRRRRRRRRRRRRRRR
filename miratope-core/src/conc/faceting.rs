@@ -111,6 +111,7 @@ impl Ranks {
         }
     }
 
+    /*
     /// Combines two `Ranks`. Only meant to be used in the faceting algorithm.
     fn append(&mut self, other: &Ranks) {
         let counts: Vec<usize> = self.iter().map(|x| x.len()).collect();
@@ -134,6 +135,7 @@ impl Ranks {
             }
         }
     }
+    */
 }
 
 /// For each faceting, checks if it is a compound of other facetings, and labels it if so.
@@ -1559,6 +1561,7 @@ impl Concrete {
 
                     ridge.element_sort_strong();
 
+                    /*
                     // look for possible disentanglement
                     let mut disentangled = None;
 
@@ -1619,6 +1622,7 @@ impl Concrete {
                             compound.append(copy);
                         }
                     }
+                    */
 
                     let mut found = false;
 
@@ -1638,7 +1642,7 @@ impl Concrete {
                         new_ridge.element_sort_strong();
                         if let Some((idx, _)) = ridge_orbits.get(&new_ridge) {
                             // writes the orbit index at the ridge index
-                            r_i_o_row_row.push((*idx, disentangled.is_some()));
+                            r_i_o_row_row.push((*idx, false));
                             found = true;
                             break
                         }
@@ -1669,7 +1673,7 @@ impl Concrete {
                             }
                         }
                         ridge_orbits.insert(ridge, (orbit_idx, count));
-                        r_i_o_row_row.push((orbit_idx, disentangled.is_some()));
+                        r_i_o_row_row.push((orbit_idx, false));
                         ridge_counts.push(count);
                         orbit_idx += 1;
 						

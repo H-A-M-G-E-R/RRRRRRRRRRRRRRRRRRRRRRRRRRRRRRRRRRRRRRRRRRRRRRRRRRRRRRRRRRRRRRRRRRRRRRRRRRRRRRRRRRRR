@@ -238,7 +238,8 @@ fn faceting_subdim(
     include_compounds: bool,
     exotic: bool,
     uniform: bool,
-    print_faceting_count: bool
+    noble_package: Option<(&Vec<Vec<usize>>, &Vec<usize>, usize)>,
+	print_faceting_count: bool
 ) ->
     (Vec<(Ranks, Vec<(usize, usize)>)>, // Vec of facetings, along with the facet types of each of them
     Vec<usize>, // Counts of each hyperplane orbit
@@ -372,6 +373,10 @@ fn faceting_subdim(
     let mut hyperplane_orbits = Vec::new();
     let mut checked = HashSet::<Vec<usize>>::new();
 
+    let mut noble_map = HashMap::<Vec<usize>, usize>::new();
+    let mut noble_counts = Vec::<usize>::new();
+    let mut noble_muls = Vec::<usize>::new();
+
     for (idx, pair_orbit) in pair_orbits.iter().enumerate() {
         let rep = &pair_orbit[0];
 
@@ -385,11 +390,20 @@ fn faceting_subdim(
         }
         'b: loop {
             'c: loop {
+                // We start with a pair and add enough vertices to define a hyperplane.
+                let mut tuple = rep.clone();
+                tuple.append(&mut new_vertices.clone());
+
                 if now.elapsed().as_millis() > DELAY && print_faceting_count {
                     print!("{}", CL);
-                    print!("{}edge orbit {}, new verts {:?}, {} hyperplane orbits", CL, idx, new_vertices, hyperplane_orbits.len());
+                    print!("{}{} hyperplane orbits, edge orbit {}/{}, verts {:?}", CL, hyperplane_orbits.len(), idx+1, pair_orbits.len(), tuple);
                     std::io::stdout().flush().unwrap();
                     now = Instant::now();
+                }
+
+                let mut first_points = Vec::new();
+                for v in tuple {
+                    first_points.push(&flat_points[v].0);
                 }
                 // WLOG checks if the vertices are all the right distance away from the first vertex.
                 for (v_i, v) in new_vertices.iter().enumerate() {
@@ -407,15 +421,6 @@ fn faceting_subdim(
                         }
                     }
                 }
-                // We start with a pair and add enough vertices to define a hyperplane.
-                let mut tuple = rep.clone();
-                tuple.append(&mut new_vertices.clone());
-
-                let mut first_points = Vec::new();
-                for v in tuple {
-                    first_points.push(&flat_points[v].0);
-                }
-
                 let hyperplane = Subspace::from_points(first_points.clone().into_iter());
                 if hyperplane.is_hyperplane() {
 
@@ -446,14 +451,48 @@ fn faceting_subdim(
                         counting.insert(new_hp_v);
                     }
                     if is_new {
+                        if let Some((full_vertex_map, global_v, count)) = noble_package {
+                            let mut set = HashSet::new();
+
+                            let mut global_hp_v = Vec::new();
+                            for idx in &hyperplane_vertices {
+                                global_hp_v.push(global_v[*idx]);
+                            }
+                            global_hp_v.sort_unstable();
+                            
+                            match noble_map.get(&global_hp_v) {
+                                Some(idx) => {
+                                    let mul = count * counting.len() / noble_counts[*idx];
+                                    noble_muls[*idx] += mul;
+                                },
+                                None => {
+                                    for row in full_vertex_map {
+                                        let mut new_hp_v = Vec::new();
+                                        for idx in &hyperplane_vertices {
+                                            new_hp_v.push(row[global_v[*idx]]);
+                                        }
+                                        
+                                        let mut sorted = new_hp_v.clone();
+                                        sorted.sort_unstable();
+        
+                                        set.insert(sorted.clone());
+                                        noble_map.insert(sorted, noble_counts.len());
+                                    }
+        
+                                    let mul = count * counting.len() / set.len();
+                                    noble_counts.push(set.len());
+                                    noble_muls.push(mul);
+                                },
+                            }
+                        }
                         checked.insert(hyperplane_vertices.clone());
                         hyperplane_orbits.push((hyperplane, hyperplane_vertices, counting.len()));
                     }
-                    if rank <= 3 {
-                        break 'b;
-                    }
                 }
-                break
+                break;
+            }
+            if rank <= 3 {
+                break;
             }
             loop { // Increment new_vertices.
                 if rank <= 3 {
@@ -477,6 +516,21 @@ fn faceting_subdim(
             }
         }
     }
+    // Filter the invalid hyperplanes if noble faceting.
+    if let Some((_, global_v, _)) = noble_package {
+        let mut new_hyperplane_orbits = Vec::new();
+
+        for orbit in hyperplane_orbits {
+            let mut global_hp_v: Vec<usize> = orbit.1.clone().iter().map(|x| global_v[*x]).collect();
+            global_hp_v.sort_unstable();
+            if noble_muls[*noble_map.get(&global_hp_v).unwrap()] >= 2 {
+                new_hyperplane_orbits.push(orbit.clone());
+            }
+        }
+
+        hyperplane_orbits = new_hyperplane_orbits;
+    }
+
     // Facet the hyperplanes
     let mut possible_facets = Vec::new();
     let mut possible_facets_global: Vec<Vec<(Ranks, Vec<(usize,usize)>)>> = Vec::new(); // copy of above but with semi-global vertex indices
@@ -520,7 +574,7 @@ fn faceting_subdim(
         }
 
         let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), min_edge_length, max_edge_length, max_per_hyperplane, include_compounds, exotic, uniform, false);
+            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), min_edge_length, max_edge_length, max_per_hyperplane, include_compounds, exotic, uniform, None, false);
 
         let mut possible_facets_global_row = Vec::new();
         for f in &possible_facets_row {
@@ -550,14 +604,13 @@ fn faceting_subdim(
     let mut ridge_counts = Vec::new(); // Counts the number of ridges in each orbit
     let mut orbit_idx = 0;
 
-    let mut hp_i = 0; // idk why i have to do this, thanks rust
-    for ridges_row in ridges {
+    for (hp_i, ridges_row) in ridges.iter_mut().enumerate() {
         let mut r_i_o_row = Vec::new();
 
         for ridges_row_row in ridges_row {
             let mut r_i_o_row_row = Vec::new();
 
-            for mut ridge in ridges_row_row {
+            for ridge in ridges_row_row {
                 // goes through all the ridges
 
                 // globalize
@@ -573,15 +626,46 @@ fn faceting_subdim(
 
                 ridge.element_sort_strong();
 
-                match ridge_orbits.get(&ridge) {
-                    Some(idx) => {
-                        // writes the orbit index at the ridge index
-                        r_i_o_row_row.push(*idx);
+                /*
+                // look for possible disentanglement
+                let mut disentangled = None;
+
+                let mut ridge_vertices_idx = HashSet::new();
+                
+                for edge in &ridge[2] {
+                    for sub in &edge.subs {
+                        ridge_vertices_idx.insert(*sub);
                     }
-                    None => {
-                        // adds all ridges with the same orbit to the map
-                        let mut count = 0;
-                        for row in &vertex_map {
+                }
+
+                let mut ridge_vertices = Vec::new();
+
+                for idx in &ridge_vertices_idx {
+                    ridge_vertices.push(points[*idx].0.clone());
+                }
+
+                let subspace = Subspace::from_points(ridge_vertices.iter());
+                let mut all_vertices_idx = HashSet::new();
+
+                for (i, vertex) in points.iter().enumerate() {
+                    if subspace.distance(&vertex.0) < f64::EPS {
+                        all_vertices_idx.insert(i);
+                    }
+                }
+
+                if all_vertices_idx.len() > ridge_vertices_idx.len() {
+                    'vmap: for row in vertex_map.iter().skip(1) {
+                        let mut different = false;
+                        for vertex in &ridge_vertices_idx {
+                            if !all_vertices_idx.contains(&row[*vertex]) {
+                                continue 'vmap;
+                            }
+                            if !ridge_vertices_idx.contains(&row[*vertex]) {
+                                different = true;
+                            }
+                        }
+                        if different {
+                            // We found a coplanar copy of the ridge, thus a disentanglement.
                             let mut new_ridge = ridge.clone();
 
                             let mut new_list = ElementList::new();
@@ -594,23 +678,83 @@ fn faceting_subdim(
                             }
                             new_ridge[2] = new_list;
 
-                            new_ridge.element_sort_strong();
-
-                            if ridge_orbits.get(&new_ridge).is_none() {
-                                ridge_orbits.insert(new_ridge, orbit_idx);
-                                count += 1;
-                            }
+                            disentangled = Some(new_ridge);
+                            break;
                         }
-                        r_i_o_row_row.push(orbit_idx);
-                        ridge_counts.push(count);
-                        orbit_idx += 1;
+                    }
+                    if let Some(copy) = &mut disentangled {
+                        let mut compound = ridge.clone();
+                        compound.append(copy);
+                    }
+                }
+                */
+
+                let mut found = false;
+
+                for row in &vertex_map {
+                    let mut new_ridge = ridge.clone();
+                
+                    let mut new_list = ElementList::new();
+                    for i in 0..new_ridge[2].len() {
+                        let mut new = Element::new(Subelements::new(), Superelements::new());
+                        for sub in &ridge[2][i].subs {
+                            new.subs.push(row[*sub])
+                        }
+                        new_list.push(new);
+                    }
+                    new_ridge[2] = new_list;
+
+                    new_ridge.element_sort_strong();
+                    if let Some((idx, _)) = ridge_orbits.get(&new_ridge) {
+                        // writes the orbit index at the ridge index
+                        r_i_o_row_row.push((*idx, false));
+                        found = true;
+                        break
+                    }
+                }
+
+                if !found {
+                    // counts the ridges in the orbit
+                    let mut count = 0;
+                    let mut set = HashSet::new();
+
+                    for row in &vertex_map {
+                        let mut new_ridge = ridge.clone();
+                    
+                        let mut new_list = ElementList::new();
+                        for i in 0..new_ridge[2].len() {
+                            let mut new = Element::new(Subelements::new(), Superelements::new());
+                            for sub in &ridge[2][i].subs {
+                                new.subs.push(row[*sub])
+                            }
+                            new_list.push(new);
+                        }
+                        new_ridge[2] = new_list;
+
+                        new_ridge.element_sort_strong();
+                        if set.get(&new_ridge).is_none() {
+                            set.insert(new_ridge);
+                            count += 1;
+                        }
+                    }
+                    ridge_orbits.insert(ridge, (orbit_idx, count));
+                    r_i_o_row_row.push((orbit_idx, false));
+                    ridge_counts.push(count);
+                    orbit_idx += 1;
+                    
+                    if now.elapsed().as_millis() > DELAY {
+                        print!("{}{}/{} hp, {} ridges", CL, hp_i + 1, hyperplane_orbits.len(), ridge_orbits.len());
+                        std::io::stdout().flush().unwrap();
+                        now = Instant::now();
                     }
                 }
             }
             r_i_o_row.push(r_i_o_row_row);
         }
         ridge_idx_orbits.push(r_i_o_row);
-        hp_i += 1;
+
+        print!("{}{}/{} hp, {} ridges", CL, hp_i, hyperplane_orbits.len(), ridge_orbits.len());
+        std::io::stdout().flush().unwrap();
     }
 
     let mut f_counts = Vec::new();
@@ -677,11 +821,14 @@ fn faceting_subdim(
             for ridge_idx in ridge_idxs_local {
                 let ridge_orbit = ridge_idx_orbits[hp][ridge_idx.0][ridge_idx.1];
                 let ridge_count = ff_counts[hp][ridge_idx.0];
-                let total_ridge_count = ridge_counts[ridge_orbit];
-                let mul = f_count * ridge_count / total_ridge_count;
+                let total_ridge_count = ridge_counts[ridge_orbit.0];
+                let mut mul = f_count * ridge_count / total_ridge_count;
+                if ridge_orbit.1 { // disentangled ridge
+                    mul /= 2;
+                }
 
-                ridges[ridge_orbit] += mul;
-                if !exotic && ridges[ridge_orbit] > 2 {
+                ridges[ridge_orbit.0] += mul;
+                if !exotic && ridges[ridge_orbit.0] > 2 {
                     break 'a;
                 }
             }
@@ -1283,8 +1430,6 @@ impl Concrete {
             // Enumerate hyperplanes
             let mut checked = HashSet::new();
     
-            let mut dbg_count: u64 = 0;
-    
             'aa: for (idx, pair_orbit) in pair_orbits.iter().enumerate() {
                 let rep = &pair_orbit[0];
     
@@ -1298,12 +1443,15 @@ impl Concrete {
                 }
                 'b: loop {
                     'c: loop {
+                        // We start with a pair and add enough vertices to define a hyperplane.
+                        let mut tuple = rep.clone();
+                        tuple.append(&mut new_vertices.clone());
+
                         if now.elapsed().as_millis() > DELAY {
-                            print!("{}loop {}, edge orbit {}, new verts {:?}, {} hyperplane orbits", CL, dbg_count, idx, new_vertices, hyperplane_orbits.len());
+                            print!("{}{} hyperplane orbits, edge orbit {}/{}, verts {:?}", CL, hyperplane_orbits.len(), idx+1, pair_orbits.len(), tuple);
                             std::io::stdout().flush().unwrap();
                             now = Instant::now();
                         }
-                        dbg_count += 1;
                         
                         // WLOG checks if the vertices are all the right distance away from the first vertex.
                         for (v_i, v) in new_vertices.iter().enumerate() {
@@ -1331,10 +1479,6 @@ impl Concrete {
                                 }
                             }
                         }
-    
-                        // We start with a pair and add enough vertices to define a hyperplane.
-                        let mut tuple = rep.clone();
-                        tuple.append(&mut new_vertices.clone());
     
                         let mut points = Vec::new();
                         for v in tuple {
@@ -1452,8 +1596,11 @@ impl Concrete {
         }
 
         let mut sum: u64 = 0;
+        let mut f_counts = Vec::new();
         for orbit in &hyperplane_orbits {
-            sum += orbit.2 as u64;
+            let count = orbit.2;
+            f_counts.push(count);
+            sum += count as u64;
         }
 
         println!("{}{} hyperplanes in {} orbit{}", CL, sum, hyperplane_orbits.len(), if hyperplane_orbits.len() == 1 {""} else {"s"});
@@ -1501,8 +1648,14 @@ impl Concrete {
                 points.push(vertices_ord[*v].clone());
             }
 
+            let noble_package = if noble == Some(1) {
+                Some((&vertex_map, &hp_v, orbit.2))
+            } else {
+                None
+            };
+
             let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-                faceting_subdim(rank-1, hp, points, new_stabilizer, min_edge_length, max_edge_length, max_per_hyperplane, include_compound_elements, exotic_elements, uniform, true);
+                faceting_subdim(rank-1, hp, points, new_stabilizer, min_edge_length, max_edge_length, max_per_hyperplane, include_compound_elements, exotic_elements, uniform, noble_package, true);
 
             let mut possible_facets_global_row = Vec::new();
             for f in &possible_facets_row {
@@ -1537,15 +1690,13 @@ impl Concrete {
         let mut ridge_counts = Vec::new(); // Counts the number of ridges in each orbit
         let mut orbit_idx = 0;
 
-        let mut hp_i = 0; // idk why i have to do this, thanks rust
-
-        for ridges_row in ridges {
+        for (hp_i, ridges_row) in ridges.iter_mut().enumerate() {
             let mut r_i_o_row = Vec::new();
 
             for ridges_row_row in ridges_row {
                 let mut r_i_o_row_row = Vec::new();
 
-                for mut ridge in ridges_row_row {
+                for ridge in ridges_row_row {
                     // goes through all the ridges
 
                     // globalize
@@ -1617,7 +1768,7 @@ impl Concrete {
                                 break;
                             }
                         }
-                        if let Some(copy) = &disentangled {
+                        if let Some(copy) = &mut disentangled {
                             let mut compound = ridge.clone();
                             compound.append(copy);
                         }
@@ -1687,15 +1838,9 @@ impl Concrete {
                 r_i_o_row.push(r_i_o_row_row);
             }
             ridge_idx_orbits.push(r_i_o_row);
-            hp_i += 1;
-        }
 
-        print!("{}{}/{} hp, {} ridges", CL, hp_i, hyperplane_orbits.len(), ridge_orbits.len());
-        std::io::stdout().flush().unwrap();
-
-        let mut f_counts = Vec::new();
-        for orbit in hyperplane_orbits {
-            f_counts.push(orbit.2);
+            print!("{}{}/{} hp, {} ridges", CL, hp_i, hyperplane_orbits.len(), ridge_orbits.len());
+            std::io::stdout().flush().unwrap();
         }
 
         // Actually do the faceting

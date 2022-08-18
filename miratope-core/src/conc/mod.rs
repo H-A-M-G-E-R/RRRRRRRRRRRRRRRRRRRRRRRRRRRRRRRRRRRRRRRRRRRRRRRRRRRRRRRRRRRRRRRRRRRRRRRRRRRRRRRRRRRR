@@ -438,11 +438,11 @@ impl Polytope for Concrete {
                 let mut v = Point::zeros(dim);
                 for n in 1..=dim {
                     if n > i {
-                        v[n - 1] = -1.0 / ((2 * n * (n + 1)) as f64).fsqrt();
+                        v[n - 1] = ((n * (n + 1) / 2) as f64).fsqrt() / -((n * (n + 1)) as f64);
                     } else if n < i {
                         v[n - 1] = 0.0;
                     } else {
-                        v[n - 1] = (n as f64 / (2 * n + 2) as f64).fsqrt()
+                        v[n - 1] = ((n * (n + 1) / 2) as f64).fsqrt() / ((n + 1) as f64)
                     }
                 }
                 vertices.push(v);

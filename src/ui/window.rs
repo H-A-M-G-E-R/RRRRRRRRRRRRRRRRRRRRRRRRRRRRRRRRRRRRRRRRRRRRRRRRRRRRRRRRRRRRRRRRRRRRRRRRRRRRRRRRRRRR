@@ -2126,7 +2126,8 @@ impl UpdateWindow for PlaneWindow {
 				p2[i] = v2[i];
 			}
 
-			let rplane = Subspace::from_points( vec![Point::zeros(self.rank),p1,p2].iter() ); //Create subspace with basis v1 and v2
+			let rplane = Subspace::from_points( vec![Point::zeros(self.rank),p1,p2].iter() ); //Create subspace with basis v1 and v2      
+            let theta = self.rot*(6.283185307179586/self.degcheck);
 			
 			for v in polytope.vertices_mut() {
 				
@@ -2134,8 +2135,8 @@ impl UpdateWindow for PlaneWindow {
 				
 				//Step 2: Rotate point around plane in basis
 				let mut vr = Point::zeros(2);
-				vr[0] = vf[0]*self.rot.cos() - vf[1]*self.rot.sin();
-				vr[1] = vf[0]*self.rot.sin() + vf[1]*self.rot.cos();
+				vr[0] = vf[0]*theta.cos() - vf[1]*theta.sin();
+				vr[1] = vf[0]*theta.sin() + vf[1]*theta.cos();
 				
 				//Step 3: Determine non-basis coordinates of rotated point and intersection point
 				let mut vc = Point::zeros(self.rank); //Intersection point

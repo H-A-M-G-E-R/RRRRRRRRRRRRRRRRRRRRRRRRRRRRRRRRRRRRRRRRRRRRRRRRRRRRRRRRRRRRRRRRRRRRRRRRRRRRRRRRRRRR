@@ -11,7 +11,7 @@ use super::{
 };
 use crate::{Concrete, Float, Hypersphere, Point, ui::main_window::PolyName};
 
-use miratope_core::{conc::ConcretePolytope, Polytope, geometry::Subspace};
+use miratope_core::{conc::ConcretePolytope, Polytope};
 
 use bevy::prelude::*;
 use bevy_egui::{
@@ -2103,11 +2103,9 @@ impl UpdateWindow for PlaneWindow {
 			let mut v1: Vec<f64> = Vec::new();
 			let mut v2: Vec<f64> = Vec::new();
 			
-			for i in &self.p1 {
-				v1.push(*i/ss1.sqrt());
-			}
-			for i in &self.p2 {
-				v2.push(*i/ss2.sqrt());
+			for i in 0..self.rank {
+				v1.push(self.p1[i]/ss1.sqrt());
+				v2.push(self.p2[i]/ss2.sqrt());
 			}
 			
 			//Implement Gram-Schmidt process to make vectors orthonormal
@@ -2126,22 +2124,28 @@ impl UpdateWindow for PlaneWindow {
 				p2[i] = v2[i];
 			}
 
-			let rplane = Subspace::from_points( vec![Point::zeros(self.rank),p1,p2].iter() ); //Create subspace with basis v1 and v2      
-            let theta = self.rot*(6.283185307179586/self.degcheck);
+			let theta = self.rot * (6.283185307179586/self.degcheck); //theta is the rotation amount in radians, which may or may not need conversion
 			
 			for v in polytope.vertices_mut() {
-				
-				let vf = rplane.flatten(v); //Step 1: Find perpendicular intersection of point and plane, in orthonormal basis
-				
-				//Step 2: Rotate point around plane in basis
-				let mut vr = Point::zeros(2);
-				vr[0] = vf[0]*theta.cos() - vf[1]*theta.sin();
-				vr[1] = vf[0]*theta.sin() + vf[1]*theta.cos();
-				
-				//Step 3: Determine non-basis coordinates of rotated point and intersection point
-				let mut vc = Point::zeros(self.rank); //Intersection point
-				let mut vrc = Point::zeros(self.rank); //Rotated point
-				for i in 0..self.rank {
+
+                //Step 1: Find perpendicular intersection of point and plane, in orthonormal basis
+                //Equivalent to solving for the vector Q where (v-Q)·v1 = (v-Q)·v2 = 0, and Q is in the v1v2 plane.
+                //From this we find Q in the v1v2 basis. It turns out to equal [v·v1/v1·v1,v·v2/v2·v2].
+                let mut vvec = Vec::new();
+                for i in 0..self.rank {
+                    vvec.push( v[i] );
+                }
+                let vf = vec![ dot(&vvec,&v1)/dot(&v1,&v1) , dot(&vvec,&v2)/dot(&v2,&v2) ];
+                
+                //Step 2: Rotate point around plane in basis
+                let mut vr = Point::zeros(2);
+                vr[0] = vf[0]*theta.cos() - vf[1]*theta.sin();
+                vr[1] = vf[0]*theta.sin() + vf[1]*theta.cos();
+                
+                //Step 3: Determine non-basis coordinates of rotated point and intersection point
+                let mut vc = Point::zeros(self.rank); //Intersection point
+                let mut vrc = Point::zeros(self.rank); //Rotated point
+                for i in 0..self.rank {
 					vrc[i] = vr[0]*v1[i]+vr[1]*v2[i];
 					vc[i] = vf[0]*v1[i]+vf[1]*v2[i];
 				}
@@ -2174,12 +2178,11 @@ impl UpdateWindow for PlaneWindow {
             ui.add(egui::DragValue::new(&mut self.rot).speed(self.degcheck/360.0).clamp_range::<f64>(0.0..=self.degcheck));
             ui.label("Rotation"); 
         });
-        
+
         ui.separator();
 
         ui.add(PointWidget::new(&mut self.p1, "First point"));
         ui.add(PointWidget::new(&mut self.p2, "Second point"));
-
     }
 
     fn dim(&self) -> usize {

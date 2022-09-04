@@ -1851,7 +1851,7 @@ impl Concrete {
             }
             ridge_idx_orbits.push(r_i_o_row);
 
-            print!("{}{}/{} hp, {} ridges", CL, hp_i, hyperplane_orbits.len(), ridge_orbits.len());
+            print!("{}{}/{} hp, {} ridges", CL, hp_i+1, hyperplane_orbits.len(), ridge_orbits.len());
             std::io::stdout().flush().unwrap();
         }
 

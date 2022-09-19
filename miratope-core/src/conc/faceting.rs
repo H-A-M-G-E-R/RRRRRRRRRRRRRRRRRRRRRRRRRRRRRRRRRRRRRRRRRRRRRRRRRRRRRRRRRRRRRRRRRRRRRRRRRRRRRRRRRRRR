@@ -1493,14 +1493,14 @@ impl Concrete {
             // Enumerate hyperplanes
             let mut checked = HashSet::new();
     
-            'b: for rep in tuple_orbits {
+            'b: for (idx, rep) in tuple_orbits.iter().enumerate() {
                 'c: for new_vertex in rep[rep.len()-1]+1..vertices.len() {
                     // We start with a pair and add enough vertices to define a hyperplane.
                     let mut tuple = rep.clone();
                     tuple.push(new_vertex);
 
                     if now.elapsed().as_millis() > DELAY {
-                        print!("{}{} hyperplane orbits, verts {:?}", CL, hyperplane_orbits.len(), tuple);
+                        print!("{}{} hyperplane orbits, tuple orbit {}/{}, verts {:?}", CL, hyperplane_orbits.len(), idx, tuple_orbits.len(), tuple);
                         std::io::stdout().flush().unwrap();
                         now = Instant::now();
                     }

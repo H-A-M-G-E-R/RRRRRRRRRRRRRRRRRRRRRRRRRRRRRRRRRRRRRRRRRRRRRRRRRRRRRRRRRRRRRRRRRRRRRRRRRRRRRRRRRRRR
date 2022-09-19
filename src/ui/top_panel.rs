@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use super::{camera::ProjectionType, memory::Memory, window::{Window, *}, UnitPointWidget, main_window::PolyName};
+use super::{camera::{ProjectionType, FillingType}, memory::Memory, window::{Window, *}, UnitPointWidget, main_window::PolyName};
 use crate::{Concrete, Float, Hyperplane, Point, Vector};
 
 use bevy::prelude::*;
@@ -335,6 +335,7 @@ pub fn show_top_panel(
     mut section_direction: ResMut<'_, Vec<SectionDirection>>,
     mut file_dialog_state: ResMut<'_, FileDialogState>,
     mut projection_type: ResMut<'_, ProjectionType>,
+    mut filling_type: ResMut<'_, FillingType>,
     mut poly_name: ResMut<'_, PolyName>,
     mut memory: ResMut<'_, Memory>,
     mut show_memory: ResMut<'_, ShowMemory>,
@@ -419,12 +420,19 @@ pub fn show_top_panel(
 
             // Configures the view.
             menu::menu(ui, "View", |ui| {
-                let mut checked = projection_type.is_orthogonal();
 
-                if ui.checkbox(&mut checked, "Orthogonal projection").clicked() {
+                if ui.checkbox(&mut projection_type.is_orthogonal(), "Orthogonal projection").clicked() {
                     projection_type.flip();
 
                     // Forces an update on all polytopes.
+                    if let Some(mut p) = query.iter_mut().next() {
+                        p.set_changed();
+                    }
+                }
+
+                if ui.checkbox(&mut filling_type.is_binary(), "Binary filling").clicked() {
+                    filling_type.flip();
+
                     if let Some(mut p) = query.iter_mut().next() {
                         p.set_changed();
                     }

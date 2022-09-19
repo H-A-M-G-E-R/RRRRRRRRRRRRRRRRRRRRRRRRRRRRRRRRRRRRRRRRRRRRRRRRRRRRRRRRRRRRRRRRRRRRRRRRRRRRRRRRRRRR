@@ -20,7 +20,7 @@ use no_cull_pipeline::PbrNoBackfaceBundle;
 use rand::prelude::*;
 
 use ui::{
-    camera::{CameraInputEvent, ProjectionType},
+    camera::{CameraInputEvent, ProjectionType, FillingType},
     MiratopePlugins,
 };
 
@@ -118,7 +118,7 @@ fn setup(
         .spawn()
         // Mesh
         .insert_bundle(PbrNoBackfaceBundle {
-            mesh: meshes.add(poly.mesh(ProjectionType::Perspective)),
+            mesh: meshes.add(poly.mesh(ProjectionType::Perspective, FillingType::DensityFilling)),
             material: mesh_material,
             ..Default::default()
         })

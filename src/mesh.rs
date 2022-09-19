@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::ui::camera::ProjectionType;
+use crate::ui::camera::{ProjectionType,FillingType};
 use crate::{Concrete, Float, Point, EPS};
 
 use bevy::{
@@ -101,7 +101,7 @@ struct Triangulation {
 
 impl Triangulation {
     /// Creates a new triangulation from a polytope.
-    fn new(polytope: &Concrete) -> Self {
+    fn new(polytope: &Concrete, filling_type: FillingType,) -> Self {
         let mut extra_vertices = Vec::new();
         let mut triangles = Vec::new();
         let empty_els = ElementList::new();
@@ -128,7 +128,7 @@ impl Triangulation {
                         path.id_iter(),
                         &path,
                         None,
-                        &FillOptions::with_fill_rule(Default::default(), FillRule::NonZero)
+                        &FillOptions::with_fill_rule(Default::default(), if filling_type.is_binary() {FillRule::EvenOdd} else {FillRule::NonZero})
                             .with_tolerance(EPS as f32),
                         &mut BuffersBuilder::new(&mut geometry, |vertex: FillVertex<'_>| {
                             vertex.sources().next().unwrap()
@@ -256,7 +256,7 @@ fn vertex_coords<'a, I: Iterator<Item = &'a Point>>(
 /// A trait for a polytope for which we can build a mesh.
 pub trait Renderable: ConcretePolytope {
     /// Builds the mesh of a polytope.
-    fn mesh(&self, projection_type: ProjectionType) -> Mesh {
+    fn mesh(&self, projection_type: ProjectionType, filling_type: FillingType) -> Mesh {
         // If there's no vertices, returns an empty mesh.
         if self.vertex_count() == 0 {
             return empty_mesh();
@@ -271,7 +271,7 @@ pub trait Renderable: ConcretePolytope {
 
         // Triangulates the polytope's faces, projects the vertices of both the
         // polytope and the triangulation.
-        let triangulation = Triangulation::new(poly.con());
+        let triangulation = Triangulation::new(poly.con(), filling_type);
         let vertices = vertex_coords(
             self.con(),
             self.vertices()

@@ -1499,6 +1499,12 @@ impl Concrete {
                     let mut tuple = rep.clone();
                     tuple.push(new_vertex);
 
+                    if now.elapsed().as_millis() > DELAY {
+                        print!("{}{} hyperplane orbits, verts {:?}", CL, hyperplane_orbits.len(), tuple);
+                        std::io::stdout().flush().unwrap();
+                        now = Instant::now();
+                    }
+
                     let edge_length = (&vertices[new_vertex]-&vertices[rep[0]]).norm();
                     if let Some(min) = min_edge_length {
                         if edge_length < min - f64::EPS {

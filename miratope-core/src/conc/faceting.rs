@@ -369,6 +369,58 @@ fn faceting_subdim(
         }
     }
 
+    // Enumerate subspaces between lines and hyperplanes
+
+    let mut tuple_orbits: Vec<Vec<usize>> = pair_orbits.iter().map(|orbit| orbit[0].clone()).collect();
+    for number in 3..rank-1 {
+        let mut checked = HashSet::new();
+        let mut new_tuple_orbits = Vec::new();
+
+        for tuple in tuple_orbits {
+            'a: for new_vertex in tuple[tuple.len()-1]..points.len() {
+                if now.elapsed().as_millis() > DELAY {
+                    print!("{}{} {}-plane orbits, verts {:?}", CL, new_tuple_orbits.len(), number-1, tuple);
+                    std::io::stdout().flush().unwrap();
+                    now = Instant::now();
+                }
+
+                let edge_length = (&points[tuple[0]].0-&points[new_vertex].0).norm();
+                if let Some(min) = min_edge_length {
+                    if edge_length < min - f64::EPS {
+                        continue;
+                    }
+                }
+                if let Some(max) = max_edge_length {
+                    if edge_length > max + f64::EPS {
+                        continue;
+                    }
+                }
+
+                let mut new_tuple = tuple.clone();
+                new_tuple.push(new_vertex);
+
+                for row in &vertex_map {
+                    let mut moved: Vec<usize> = new_tuple.iter().map(|x| row[*x]).collect();
+                    moved.sort_unstable();
+
+                    if checked.contains(&moved) {
+                        continue 'a;
+                    }
+                }
+
+                new_tuple.sort_unstable();
+
+                if Subspace::from_points(new_tuple.iter().map(|x| &points[*x].0)).rank() == number-1 {
+                    new_tuple_orbits.push(new_tuple.clone());
+                }
+
+                checked.insert(new_tuple);
+            }
+        }
+        println!("{}{} {}-plane orbit{}", CL, new_tuple_orbits.len(), number-1, if new_tuple_orbits.len() == 1 {""} else {"s"});
+        tuple_orbits = new_tuple_orbits.iter().map(|x| x.clone()).collect();
+    }
+    
     // Enumerate hyperplanes
     let mut hyperplane_orbits = Vec::new();
     let mut checked = HashSet::<Vec<usize>>::new();
@@ -377,141 +429,102 @@ fn faceting_subdim(
     let mut noble_counts = Vec::<usize>::new();
     let mut noble_muls = Vec::<usize>::new();
 
-    for (idx, pair_orbit) in pair_orbits.iter().enumerate() {
-        let rep = &pair_orbit[0];
+    for (idx, rep) in tuple_orbits.iter().enumerate() {
+        for new_vertex in rep[rep.len()-1] + if rank == 3 {0} else {1}..points.len() {
+            // We start with a pair and add enough vertices to define a hyperplane.
+            let mut tuple = rep.clone();
+            tuple.push(new_vertex);
 
-        if rep[1]+rank-2 > points.len() {
-            continue;
-        }
-        let mut new_vertices: Vec<usize> = (rep[1]+1..rep[1]+rank-2).collect();
-        let mut update = 0;
-        if rank > 3 {
-            update = rank-4;
-        }
-        'b: loop {
-            'c: loop {
-                // We start with a pair and add enough vertices to define a hyperplane.
-                let mut tuple = rep.clone();
-                tuple.append(&mut new_vertices.clone());
+            if now.elapsed().as_millis() > DELAY && print_faceting_count {
+                print!("{}", CL);
+                print!("{}{} hyperplane orbits, tuple orbit {}/{}, verts {:?}", CL, hyperplane_orbits.len(), idx, tuple_orbits.len(), tuple);
+                std::io::stdout().flush().unwrap();
+                now = Instant::now();
+            }
 
-                if now.elapsed().as_millis() > DELAY && print_faceting_count {
-                    print!("{}", CL);
-                    print!("{}{} hyperplane orbits, edge orbit {}/{}, verts {:?}", CL, hyperplane_orbits.len(), idx+1, pair_orbits.len(), tuple);
-                    std::io::stdout().flush().unwrap();
-                    now = Instant::now();
+            let edge_length = (&points[new_vertex].0-&points[rep[0]].0).norm();
+            if let Some(min) = min_edge_length {
+                if edge_length < min - f64::EPS {
+                    continue;
                 }
-
-                let mut first_points = Vec::new();
-                for v in tuple {
-                    first_points.push(&flat_points[v].0);
+            }
+            if let Some(max) = max_edge_length {
+                if edge_length > max + f64::EPS {
+                    continue;
                 }
-                // WLOG checks if the vertices are all the right distance away from the first vertex.
-                for (v_i, v) in new_vertices.iter().enumerate() {
-                    let edge_length = (&points[*v].0-&points[rep[0]].0).norm();
-                    if let Some(min) = min_edge_length {
-                        if edge_length < min - f64::EPS {
-                            update = v_i;
-                            break 'c;
-                        }
-                    }
-                    if let Some(max) = max_edge_length {
-                        if edge_length > max + f64::EPS {
-                            update = v_i;
-                            break 'c;
-                        }
+            }
+
+            let mut first_points = Vec::new();
+            for v in tuple {
+                first_points.push(&flat_points[v].0);
+            }
+
+            let hyperplane = Subspace::from_points(first_points.clone().into_iter());
+            if hyperplane.is_hyperplane() {
+
+                let mut hyperplane_vertices = Vec::new();
+                for (idx, v) in flat_points.iter().enumerate() {
+                    if hyperplane.distance(&v.0) < f64::EPS {
+                        hyperplane_vertices.push(idx);
                     }
                 }
-                let hyperplane = Subspace::from_points(first_points.clone().into_iter());
-                if hyperplane.is_hyperplane() {
+                hyperplane_vertices.sort_unstable();
 
-                    let mut hyperplane_vertices = Vec::new();
-                    for (idx, v) in flat_points.iter().enumerate() {
-                        if hyperplane.distance(&v.0) < f64::EPS {
-                            hyperplane_vertices.push(idx);
-                        }
+                // Check if the hyperplane has been found already.
+                let mut is_new = true;
+                let mut counting = HashSet::<Vec<usize>>::new();
+                for row in &vertex_map {
+                    let mut new_hp_v = Vec::new();
+                    for idx in &hyperplane_vertices {
+                        new_hp_v.push(row[*idx]);
                     }
-                    hyperplane_vertices.sort_unstable();
 
-                    // Check if the hyperplane has been found already.
-                    let mut is_new = true;
-                    let mut counting = HashSet::<Vec<usize>>::new();
-                    for row in &vertex_map {
-                        let mut new_hp_v = Vec::new();
+                    new_hp_v.sort_unstable();
+
+                    if checked.contains(&new_hp_v) {
+                        is_new = false;
+                        break
+                    }
+                    
+                    counting.insert(new_hp_v);
+                }
+                if is_new {
+                    if let Some((full_vertex_map, global_v, count)) = noble_package {
+                        let mut set = HashSet::new();
+
+                        let mut global_hp_v = Vec::new();
                         for idx in &hyperplane_vertices {
-                            new_hp_v.push(row[*idx]);
+                            global_hp_v.push(global_v[*idx]);
                         }
-
-                        new_hp_v.sort_unstable();
-
-                        if checked.contains(&new_hp_v) {
-                            is_new = false;
-                            break
-                        }
+                        global_hp_v.sort_unstable();
                         
-                        counting.insert(new_hp_v);
-                    }
-                    if is_new {
-                        if let Some((full_vertex_map, global_v, count)) = noble_package {
-                            let mut set = HashSet::new();
-
-                            let mut global_hp_v = Vec::new();
-                            for idx in &hyperplane_vertices {
-                                global_hp_v.push(global_v[*idx]);
-                            }
-                            global_hp_v.sort_unstable();
-                            
-                            match noble_map.get(&global_hp_v) {
-                                Some(idx) => {
-                                    let mul = count * counting.len() / noble_counts[*idx];
-                                    noble_muls[*idx] += mul;
-                                },
-                                None => {
-                                    for row in full_vertex_map {
-                                        let mut new_hp_v = Vec::new();
-                                        for idx in &hyperplane_vertices {
-                                            new_hp_v.push(row[global_v[*idx]]);
-                                        }
-                                        
-                                        let mut sorted = new_hp_v.clone();
-                                        sorted.sort_unstable();
-        
-                                        set.insert(sorted.clone());
-                                        noble_map.insert(sorted, noble_counts.len());
+                        match noble_map.get(&global_hp_v) {
+                            Some(idx) => {
+                                let mul = count * counting.len() / noble_counts[*idx];
+                                noble_muls[*idx] += mul;
+                            },
+                            None => {
+                                for row in full_vertex_map {
+                                    let mut new_hp_v = Vec::new();
+                                    for idx in &hyperplane_vertices {
+                                        new_hp_v.push(row[global_v[*idx]]);
                                     }
-        
-                                    let mul = count * counting.len() / set.len();
-                                    noble_counts.push(set.len());
-                                    noble_muls.push(mul);
-                                },
-                            }
+                                    
+                                    let mut sorted = new_hp_v.clone();
+                                    sorted.sort_unstable();
+    
+                                    set.insert(sorted.clone());
+                                    noble_map.insert(sorted, noble_counts.len());
+                                }
+    
+                                let mul = count * counting.len() / set.len();
+                                noble_counts.push(set.len());
+                                noble_muls.push(mul);
+                            },
                         }
-                        checked.insert(hyperplane_vertices.clone());
-                        hyperplane_orbits.push((hyperplane, hyperplane_vertices, counting.len()));
                     }
-                }
-                break;
-            }
-            if rank <= 3 {
-                break;
-            }
-            loop { // Increment new_vertices.
-                if rank <= 3 {
-                    break 'b;
-                }
-                if new_vertices[update] == total_vert_count + update - rank + 3 {
-                    if update < 1 {
-                        break 'b;
-                    }
-                    else {
-                        update -= 1;
-                    }
-                } else {
-                    new_vertices[update] += 1;
-                    for i in update+1..rank-3 {
-                        new_vertices[i] = new_vertices[i-1]+1;
-                    }
-                    update = rank-4;
-                    break;
+                    checked.insert(hyperplane_vertices.clone());
+                    hyperplane_orbits.push((hyperplane, hyperplane_vertices, counting.len()));
                 }
             }
         }
@@ -1197,8 +1210,8 @@ impl Concrete {
         let rank = if let Some(sr) = skew_rank {sr+1} else {self.rank()};
         let mut now = Instant::now();
 
-        if rank < 4 {
-            println!("\nFaceting polytopes of rank less than 3 is not supported!\n");
+        if rank < 2 {
+            println!("\nFaceting polytopes of rank less than 2 is not supported!\n");
             return Vec::new()
         }
 
@@ -1435,51 +1448,40 @@ impl Concrete {
                 let mut new_tuple_orbits = Vec::new();
 
                 for tuple in tuple_orbits {
-                    for new_vertex in tuple[tuple.len()-1]..vertices.len() {
+                    'a: for new_vertex in tuple[tuple.len()-1]..vertices.len() {
                         if now.elapsed().as_millis() > DELAY {
                             print!("{}{} {}-plane orbits, verts {:?}", CL, new_tuple_orbits.len(), number-1, tuple);
                             std::io::stdout().flush().unwrap();
                             now = Instant::now();
                         }
 
-                        let mut wrong_edge = false;
-
                         let edge_length = (&vertices[tuple[0]]-&vertices[new_vertex]).norm();
                         if let Some(min) = min_edge_length {
                             if edge_length < min - f64::EPS {
-                                wrong_edge = true;
+                                continue;
                             }
                         }
                         if let Some(max) = max_edge_length {
                             if edge_length > max + f64::EPS {
-                                wrong_edge = true;
+                                continue;
                             }
-                        }
-                        if wrong_edge {
-                            continue;
                         }
 
                         let mut new_tuple = tuple.clone();
                         new_tuple.push(new_vertex);
 
-                        let mut already_seen = false;
                         for row in &vertex_map {
                             let mut moved: Vec<usize> = new_tuple.iter().map(|x| row[*x]).collect();
                             moved.sort_unstable();
 
                             if checked.contains(&moved) {
-                                already_seen = true;
-                                break;
+                                continue 'a;
                             }
-                        }
-                        if already_seen {
-                            continue;
                         }
 
                         new_tuple.sort_unstable();
 
-                        let subspace = Subspace::from_points(new_tuple.iter().map(|x| &vertices[*x]));
-                        if subspace.rank() == number-1 {
+                        if Subspace::from_points(new_tuple.iter().map(|x| &vertices[*x])).rank() == number-1 {
                             new_tuple_orbits.push(new_tuple.clone());
                         }
 
@@ -1494,7 +1496,7 @@ impl Concrete {
             let mut checked = HashSet::new();
     
             'b: for (idx, rep) in tuple_orbits.iter().enumerate() {
-                'c: for new_vertex in rep[rep.len()-1]+1..vertices.len() {
+                'c: for new_vertex in rep[rep.len()-1] + if rank == 3 {0} else {1}..vertices.len() {
                     // We start with a pair and add enough vertices to define a hyperplane.
                     let mut tuple = rep.clone();
                     tuple.push(new_vertex);

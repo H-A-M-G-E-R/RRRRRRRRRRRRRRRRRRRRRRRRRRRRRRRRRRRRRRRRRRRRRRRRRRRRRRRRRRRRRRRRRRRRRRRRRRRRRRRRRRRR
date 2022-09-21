@@ -1210,7 +1210,7 @@ impl Concrete {
         let rank = if let Some(sr) = skew_rank {sr+1} else {self.rank()};
         let mut now = Instant::now();
 
-        if rank < 2 {
+        if rank < 3 {
             println!("\nFaceting polytopes of rank less than 2 is not supported!\n");
             return Vec::new()
         }

@@ -2049,6 +2049,11 @@ pub struct PlaneWindow {
 	
 	/// Determines unit angle = 1/n
 	degcheck: f64,
+
+	//Determines if a custom origin point should be used.
+	origincheck: bool,
+	po: Point,
+
 }
 
 impl Default for PlaneWindow {
@@ -2059,7 +2064,9 @@ impl Default for PlaneWindow {
             rot: 0.0,
             p1: Point::zeros(0),
             p2: Point::zeros(0),
-            degcheck: 6.283185307179586
+            degcheck: 6.283185307179586,
+			origincheck: false,
+			po: Point::zeros(0),
         }
     }
 }
@@ -2093,6 +2100,7 @@ impl UpdateWindow for PlaneWindow {
 		} else {
 			//Step 0: Make plane of orthonormal basis based on input
 			//Make points p1 and p2 into unit Vec<f64> objects.
+			//Also subtract po from p1 and p2
 			let ss1: f64 = self.p1.iter().map(|&x| x*x).sum();
 			let ss2: f64 = self.p2.iter().map(|&x| x*x).sum();
 			
@@ -2100,24 +2108,20 @@ impl UpdateWindow for PlaneWindow {
 			let mut v2: Vec<f64> = Vec::new();
 			
 			for i in 0..self.rank {
-				v1.push(self.p1[i]/ss1.sqrt());
-				v2.push(self.p2[i]/ss2.sqrt());
+				v1.push( (self.p1[i]-self.po[i])/ss1.sqrt() );
+				v2.push( (self.p2[i]-self.po[i])/ss2.sqrt() );
 			}
 			
 			//Implement Gram-Schmidt process to make vectors orthonormal
 			let prod = dot(&v1,&v2)/dot(&v2,&v2);
 			let mut u2: Vec<f64> = Vec::new();
-			for i in 0..v1.len() {
-				u2.push(v2[i] - v1[i] * prod)
+			for i in 0..self.rank {
+				u2.push(v2[i] - v1[i] * prod);
 			}
-			v2 = u2;
+			let ss3: f64 = u2.iter().map(|&x| x*x).sum();
 			
-			//Transform v1 and v2 back into points
-			let mut p1 = Point::zeros(self.rank);
-			let mut p2 = Point::zeros(self.rank);
-			for i in 0..v1.len() {
-				p1[i] = v1[i];
-				p2[i] = v2[i];
+			for i in 0..self.rank {
+				v2[i] = u2[i]/ss3.sqrt();
 			}
 
 			let theta = self.rot * (6.283185307179586/self.degcheck); //theta is the rotation amount in radians, which may or may not need conversion
@@ -2174,11 +2178,17 @@ impl UpdateWindow for PlaneWindow {
             ui.add(egui::DragValue::new(&mut self.rot).speed(self.degcheck/360.0).clamp_range::<f64>(0.0..=self.degcheck));
             ui.label("Rotation"); 
         });
-
-        ui.separator();
-
-        ui.add(PointWidget::new(&mut self.p1, "First point"));
-        ui.add(PointWidget::new(&mut self.p2, "Second point"));
+		
+		ui.separator();
+		
+		ui.add(egui::Checkbox::new(&mut self.origincheck, "Use a third origin point"));
+		
+		ui.add(PointWidget::new(&mut self.p1, "First point"));
+		ui.add(PointWidget::new(&mut self.p2, "Second point"));
+		if self.origincheck {
+			ui.add(PointWidget::new(&mut self.po, "Origin point"));
+		}
+		
     }
 
     fn dim(&self) -> usize {
@@ -2190,7 +2200,8 @@ impl UpdateWindow for PlaneWindow {
             rank: dim,
             rot: 0.0,
             p1: Point::zeros(dim),
-            p2: Point::zeros(dim),
+			p2: Point::zeros(dim),
+			po: Point::zeros(dim),
             ..Default::default()
         }
     }
@@ -2198,6 +2209,7 @@ impl UpdateWindow for PlaneWindow {
     fn update(&mut self, dim: usize) {
         self.rank = dim;
         self.p1 = Point::zeros(dim);
-        self.p2 = Point::zeros(dim);
+		self.p2 = Point::zeros(dim);
+		self.po = Point::zeros(dim);
     }
 }

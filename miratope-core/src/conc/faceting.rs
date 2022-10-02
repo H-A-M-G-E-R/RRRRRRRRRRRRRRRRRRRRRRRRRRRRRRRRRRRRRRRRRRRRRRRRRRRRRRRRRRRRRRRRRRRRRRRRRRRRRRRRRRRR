@@ -1,6 +1,6 @@
 //! The faceting algorithm.
 
-use std::{collections::{BTreeMap, HashMap, HashSet, VecDeque}, vec, iter::FromIterator, io::Write, time::Instant, path::PathBuf};
+use std::{collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque}, vec, iter::FromIterator, io::Write, time::Instant, path::PathBuf};
 
 use crate::{
     abs::{Abstract, Element, ElementList, Ranked, Ranks, Subelements, Superelements, AbstractBuilder},
@@ -1179,8 +1179,9 @@ impl Concrete {
         &mut self,
         vertices: Vec<Point<f64>>,
         symmetry: GroupEnum,
-        min_edge_length: Option<f64>,
-        max_edge_length: Option<f64>,
+        any_single_edge_length: bool,
+        mut min_edge_length: Option<f64>,
+        mut max_edge_length: Option<f64>,
         min_inradius: Option<f64>,
         max_inradius: Option<f64>,
         exclude_hemis: bool,
@@ -1242,6 +1243,8 @@ impl Concrete {
             },
         };
 
+        let mut output = Vec::new();
+        
         println!("\nMatching vertices...");
 
         // Checking every r-tuple of vertices would take too long, so we put pairs into orbits first to reduce the number.
@@ -1270,6 +1273,44 @@ impl Concrete {
         }
 
         println!("{} vertices in {} orbit{}", vertices.len(), orbit_idx, if orbit_idx == 1 {""} else {"s"});
+
+        let mut possible_lengths_set = BTreeSet::<OrderedFloat<f64>>::new();
+        let mut possible_lengths = Vec::new();
+
+        if any_single_edge_length {
+            println!("\nComputing edge lengths...");
+
+            for orbit in &vertex_orbits {
+                let rep = orbit[0];
+                for i in rep+1..vertices.len() {
+                    possible_lengths_set.insert(OrderedFloat((vertices[rep].clone() - vertices[i].clone()).norm()));
+                }
+            }
+            let mut possible_lengths_ordf: Vec<&OrderedFloat<f64>> = possible_lengths_set.iter().collect();
+            possible_lengths_ordf.sort_unstable();
+
+            if possible_lengths_ordf.len() > 0 {
+                possible_lengths.push(possible_lengths_ordf[0].0);
+            }
+            for idx in 0..possible_lengths_ordf.len()-1 {
+                let len1 = possible_lengths_ordf[idx].0;
+                let len2 = possible_lengths_ordf[idx+1].0;
+                if len2-len1 > f64::EPS {
+                    possible_lengths.push(len2);
+                }
+            }
+
+            println!("Found {} edge lengths: {:?}", possible_lengths.len(), possible_lengths);
+        }
+        let mut edge_length_idx = 0;
+
+        loop {
+        if any_single_edge_length {
+            let edge_length = possible_lengths[edge_length_idx];
+            min_edge_length = Some(edge_length);
+            max_edge_length = Some(edge_length);
+            println!("\nChecking edge length {} ({}/{})", edge_length, edge_length_idx+1, possible_lengths.len());
+        }
 
         println!("\nEnumerating hyperplanes...");
 
@@ -1397,7 +1438,7 @@ impl Concrete {
             let mut pair_orbit_lengths = Vec::new();
             let mut checked = vec![vec![false; vertices.len()]; vertices.len()];
             
-            for orbit in vertex_orbits {
+            for orbit in &vertex_orbits {
                 let rep = orbit[0]; // We only need one representative per orbit.
                 for vertex in rep+1..vertices.len() {
                     if let Some(k_v_o) = kept_vertex_orbit {
@@ -2024,9 +2065,7 @@ impl Concrete {
                 _ => {}
             }
         }
-
-        println!("{}{} facetings", CL, output_facets.len());
-
+        
         if !include_compounds {
             println!("\nFiltering mixed compounds...");
             let output_idxs = filter_irc(&output_facets);
@@ -2040,9 +2079,8 @@ impl Concrete {
 
         // Output the faceted polytopes. We will build them from their sets of facet orbits.
 
-        println!("Found {} facetings", output_facets.len());
+        println!("Found {} faceting{}", output_facets.len(), if output_facets.len() == 1 {""} else {"s"});
         println!("\nBuilding...");
-        let mut output = Vec::new();
         let mut used_facets = HashMap::new(); // used for outputting the facets at the end if `save_facets` is `true`.
         let mut faceting_idx = 0; // We used to use `output.len()` but this doesn't work if you skip outputting the polytopes.
         let num_facetings = output_facets.len();
@@ -2248,6 +2286,13 @@ impl Concrete {
                                 continue
                             }
                         }
+
+                        let name = format!("faceting {}{}{}{}",
+                            if any_single_edge_length {edge_length_idx.to_string() + "."} else {"".to_string()},
+                            faceting_idx,
+                            if label_facets {" -".to_owned() + &facets_fmt.to_string()} else {"".to_string()},
+                            fissary_status
+                        );
                         if save_to_file {
                             let mut path = PathBuf::from(&file_path);
                             path.push(format!("{}.off",
@@ -2262,13 +2307,7 @@ impl Concrete {
                                 Ok(_) => (),
                             }
                         } else {
-                            output.push((poly.clone(), Some(
-                                if label_facets {
-                                    format!("faceting {} -{}{}", faceting_idx, facets_fmt, fissary_status)
-                                } else {
-                                    format!("faceting {}{}", faceting_idx, fissary_status)
-                                }
-                            )));
+                            output.push((poly.clone(), Some(name)));
                         }
                     }
                     if save_facets {
@@ -2309,7 +2348,15 @@ impl Concrete {
             }
         }
 
+        if any_single_edge_length {
+            edge_length_idx += 1;
+            if edge_length_idx < possible_lengths.len() {
+                continue;
+            }
+        }
+
         println!("\nFaceting complete\n");
         return output
+        }
     }
 }

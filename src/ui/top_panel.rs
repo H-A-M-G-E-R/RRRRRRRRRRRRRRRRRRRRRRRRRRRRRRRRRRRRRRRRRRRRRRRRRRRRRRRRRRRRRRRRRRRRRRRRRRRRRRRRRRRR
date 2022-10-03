@@ -828,6 +828,7 @@ pub fn show_top_panel(
                                 GroupEnum2::FromSlot(_) => GroupEnum::VertexMap(vertices_thing.1)
                             },
                             faceting_settings.any_single_edge_length,
+                            faceting_settings.exclude_unit_edges,
                             if faceting_settings.do_min_edge_length {Some(faceting_settings.min_edge_length)} else {None}, 
                             if faceting_settings.do_max_edge_length {Some(faceting_settings.max_edge_length)} else {None}, 
                             if faceting_settings.do_min_inradius {Some(faceting_settings.min_inradius)} else {None}, 

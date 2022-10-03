@@ -1180,6 +1180,7 @@ impl Concrete {
         vertices: Vec<Point<f64>>,
         symmetry: GroupEnum,
         any_single_edge_length: bool,
+        exclude_unit_edges: bool,
         mut min_edge_length: Option<f64>,
         mut max_edge_length: Option<f64>,
         min_inradius: Option<f64>,
@@ -1290,12 +1291,23 @@ impl Concrete {
             possible_lengths_ordf.sort_unstable();
 
             if possible_lengths_ordf.len() > 0 {
-                possible_lengths.push(possible_lengths_ordf[0].0);
+                if exclude_unit_edges {
+                    if (possible_lengths_ordf[0].0 - 1.0).abs() > f64::EPS && (possible_lengths_ordf[0].0 - (if let Some(cs) = self.circumsphere() {cs.radius()} else {0.0})).abs() > f64::EPS {
+                        possible_lengths.push(possible_lengths_ordf[0].0);
+                    }
+                } else {
+                    possible_lengths.push(possible_lengths_ordf[0].0);
+                }
             }
             for idx in 0..possible_lengths_ordf.len()-1 {
                 let len1 = possible_lengths_ordf[idx].0;
                 let len2 = possible_lengths_ordf[idx+1].0;
                 if len2-len1 > f64::EPS {
+                    if exclude_unit_edges {
+                        if (len2 - 1.0).abs() < f64::EPS || (len2 - (if let Some(cs) = self.circumsphere() {cs.radius()} else {0.0})).abs() < f64::EPS {
+                            continue;
+                        }
+                    }
                     possible_lengths.push(len2);
                 }
             }
@@ -2295,13 +2307,7 @@ impl Concrete {
                         );
                         if save_to_file {
                             let mut path = PathBuf::from(&file_path);
-                            path.push(format!("{}.off",
-                                if label_facets {
-                                    format!("faceting {} -{}{}", faceting_idx, facets_fmt, fissary_status)
-                                } else {
-                                    format!("faceting {}{}", faceting_idx, fissary_status)
-                                }
-                            ));
+                            path.push(format!("{}.off", name));
                             match poly.to_path(&path, Default::default()) {
                                 Err(why) => panic!("couldn't write to {}: {}", path.display(), why),
                                 Ok(_) => (),

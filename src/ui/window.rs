@@ -1529,7 +1529,7 @@ pub struct FacetingSettings {
     /// Whether to use a kept vertex orbit.
     pub do_kept_vertex_orbit: bool,
 
-    // The kept vertex orbit.
+    /// The kept vertex orbit.
     pub kept_vertex_orbit: usize,
 
     /// Where to get the symmetry group from.
@@ -1538,6 +1538,9 @@ pub struct FacetingSettings {
     /// Whether to check for all possible edge lengths and facet with each of them.
     /// If `false`, allows picking a range of edge lengths.
     pub any_single_edge_length: bool,
+
+    /// Whether to exclude unit edges and radius edges.
+    pub exclude_unit_edges: bool,
 
     // These can't just be `Option`s because you need checkboxes and stuff.
     /// Whether to use a minimum edge length.
@@ -1635,6 +1638,7 @@ impl Default for FacetingSettings {
             kept_vertex_orbit: 0,
             group: GroupEnum2::Chiral(false),
             any_single_edge_length: false,
+            exclude_unit_edges: false,
             do_min_edge_length: true,
             min_edge_length: 1.,
             do_max_edge_length: true,
@@ -1821,6 +1825,10 @@ impl MemoryWindow for FacetingSettings {
 
         ui.radio_value(&mut self.any_single_edge_length, true, "Any single edge length");
         ui.radio_value(&mut self.any_single_edge_length, false, "Edge length range");
+
+        ui.add(
+            egui::Checkbox::new(&mut self.exclude_unit_edges, "Exclude unit edges and radius edges (only applies to any single edge length)")
+        );
         
         ui.horizontal(|ui| {
             ui.add(

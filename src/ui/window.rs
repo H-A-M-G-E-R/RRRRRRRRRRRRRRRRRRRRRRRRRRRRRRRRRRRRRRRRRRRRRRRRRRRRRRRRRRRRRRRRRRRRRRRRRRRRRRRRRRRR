@@ -68,8 +68,8 @@ impl Plugin for WindowPlugin {
             .add_plugin(TruncateWindow::plugin())
             .add_plugin(ScaleWindow::plugin())
             .add_plugin(FacetingSettings::plugin())
-			.add_plugin(RotateWindow::plugin())
-			.add_plugin(PlaneWindow::plugin())
+            .add_plugin(RotateWindow::plugin())
+            .add_plugin(PlaneWindow::plugin())
             .add_plugin(WikiWindow::plugin());
     }
 }
@@ -2042,7 +2042,7 @@ impl UpdateWindow for RotateWindow {
             });
         }
     }
-	
+    
     fn dim(&self) -> usize {
         self.rank
     }
@@ -2071,17 +2071,17 @@ pub struct PlaneWindow {
 
     /// Rotation amount (radians).
     rot: f64,
-	
-	/// Coordinates of points.
-	p1: Point,
-	p2: Point,
-	
-	/// Determines unit angle = 1/n
-	degcheck: f64,
+    
+    /// Coordinates of points.
+    p1: Point,
+    p2: Point,
+    
+    /// Determines unit angle = 1/n
+    degcheck: f64,
 
-	//Determines if a custom origin point should be used.
-	origincheck: bool,
-	po: Point,
+    //Determines if a custom origin point should be used.
+    origincheck: bool,
+    po: Point,
 
 }
 
@@ -2094,8 +2094,8 @@ impl Default for PlaneWindow {
             p1: Point::zeros(0),
             p2: Point::zeros(0),
             degcheck: 6.283185307179586,
-			origincheck: false,
-			po: Point::zeros(0),
+            origincheck: false,
+            po: Point::zeros(0),
         }
     }
 }
@@ -2113,49 +2113,49 @@ impl Window for PlaneWindow {
 }
 
 fn dot(u: &Vec<f64>, v: &Vec<f64>) -> f64 {
-	let mut sum = 0.0;
-	for i in 0..u.len() {
-		sum += u[i]*v[i];
-	}
-	return sum
+    let mut sum = 0.0;
+    for i in 0..u.len() {
+        sum += u[i]*v[i];
+    }
+    return sum
 }
 
 impl UpdateWindow for PlaneWindow {
     fn action(&self, polytope: &mut Concrete) {
-		if self.p1 == Point::zeros(self.rank) || self.p2 == Point::zeros(self.rank) {
-			println!("Points within plane cannot be located at the origin.");
-		} else if self.rot == 0.0 {
-			println!("Rotated, but the rotation amount was set to 0 so there was no change.");
-		} else {
-			//Step 0: Make plane of orthonormal basis based on input
-			//Make points p1 and p2 into unit Vec<f64> objects.
-			//Also subtract po from p1 and p2
-			let ss1: f64 = self.p1.iter().map(|&x| x*x).sum();
-			let ss2: f64 = self.p2.iter().map(|&x| x*x).sum();
-			
-			let mut v1: Vec<f64> = Vec::new();
-			let mut v2: Vec<f64> = Vec::new();
-			
-			for i in 0..self.rank {
-				v1.push( (self.p1[i]-self.po[i])/ss1.sqrt() );
-				v2.push( (self.p2[i]-self.po[i])/ss2.sqrt() );
-			}
-			
-			//Implement Gram-Schmidt process to make vectors orthonormal
-			let prod = dot(&v1,&v2)/dot(&v2,&v2);
-			let mut u2: Vec<f64> = Vec::new();
-			for i in 0..self.rank {
-				u2.push(v2[i] - v1[i] * prod);
-			}
-			let ss3: f64 = u2.iter().map(|&x| x*x).sum();
-			
-			for i in 0..self.rank {
-				v2[i] = u2[i]/ss3.sqrt();
-			}
+        if self.p1 == Point::zeros(self.rank) || self.p2 == Point::zeros(self.rank) {
+            println!("Points within plane cannot be located at the origin.");
+        } else if self.rot == 0.0 {
+            println!("Rotated, but the rotation amount was set to 0 so there was no change.");
+        } else {
+            //Step 0: Make plane of orthonormal basis based on input
+            //Make points p1 and p2 into unit Vec<f64> objects.
+            //Also subtract po from p1 and p2
+            let ss1: f64 = self.p1.iter().map(|&x| x*x).sum();
+            let ss2: f64 = self.p2.iter().map(|&x| x*x).sum();
+            
+            let mut v1: Vec<f64> = Vec::new();
+            let mut v2: Vec<f64> = Vec::new();
+            
+            for i in 0..self.rank {
+                v1.push( (self.p1[i]-self.po[i])/ss1.sqrt() );
+                v2.push( (self.p2[i]-self.po[i])/ss2.sqrt() );
+            }
+            
+            //Implement Gram-Schmidt process to make vectors orthonormal
+            let prod = dot(&v1,&v2)/dot(&v2,&v2);
+            let mut u2: Vec<f64> = Vec::new();
+            for i in 0..self.rank {
+                u2.push(v2[i] - v1[i] * prod);
+            }
+            let ss3: f64 = u2.iter().map(|&x| x*x).sum();
+            
+            for i in 0..self.rank {
+                v2[i] = u2[i]/ss3.sqrt();
+            }
 
-			let theta = self.rot * (6.283185307179586/self.degcheck); //theta is the rotation amount in radians, which may or may not need conversion
-			
-			for v in polytope.vertices_mut() {
+            let theta = self.rot * (6.283185307179586/self.degcheck); //theta is the rotation amount in radians, which may or may not need conversion
+            
+            for v in polytope.vertices_mut() {
 
                 //Step 1: Find perpendicular intersection of point and plane, in orthonormal basis
                 //Equivalent to solving for the vector Q where (v-Q)·v1 = (v-Q)·v2 = 0, and Q is in the v1v2 plane.
@@ -2175,21 +2175,21 @@ impl UpdateWindow for PlaneWindow {
                 let mut vc = Point::zeros(self.rank); //Intersection point
                 let mut vrc = Point::zeros(self.rank); //Rotated point
                 for i in 0..self.rank {
-					vrc[i] = vr[0]*v1[i]+vr[1]*v2[i];
-					vc[i] = vf[0]*v1[i]+vf[1]*v2[i];
-				}
-				
-				//Step 4: Reverse vector transformation between original point and intersection point onto rotated point. This is our new point.
-				//new v = vrc + v - vc
-				for i in 0..self.rank {
-					v[i] = vrc[i] + v[i] - vc[i];
-				}
-			}	
-			
-			println!("Rotated!");
-		
-		}
-	
+                    vrc[i] = vr[0]*v1[i]+vr[1]*v2[i];
+                    vc[i] = vf[0]*v1[i]+vf[1]*v2[i];
+                }
+                
+                //Step 4: Reverse vector transformation between original point and intersection point onto rotated point. This is our new point.
+                //new v = vrc + v - vc
+                for i in 0..self.rank {
+                    v[i] = vrc[i] + v[i] - vc[i];
+                }
+            }    
+            
+            println!("Rotated!");
+        
+        }
+    
     }
 
     fn name_action(&self, name: &mut String) {
@@ -2207,17 +2207,17 @@ impl UpdateWindow for PlaneWindow {
             ui.add(egui::DragValue::new(&mut self.rot).speed(self.degcheck/360.0).clamp_range::<f64>(0.0..=self.degcheck));
             ui.label("Rotation"); 
         });
-		
-		ui.separator();
-		
-		ui.add(egui::Checkbox::new(&mut self.origincheck, "Use a third origin point"));
-		
-		ui.add(PointWidget::new(&mut self.p1, "First point"));
-		ui.add(PointWidget::new(&mut self.p2, "Second point"));
-		if self.origincheck {
-			ui.add(PointWidget::new(&mut self.po, "Origin point"));
-		}
-		
+        
+        ui.separator();
+        
+        ui.add(egui::Checkbox::new(&mut self.origincheck, "Use a third origin point"));
+        
+        ui.add(PointWidget::new(&mut self.p1, "First point"));
+        ui.add(PointWidget::new(&mut self.p2, "Second point"));
+        if self.origincheck {
+            ui.add(PointWidget::new(&mut self.po, "Origin point"));
+        }
+        
     }
 
     fn dim(&self) -> usize {
@@ -2229,8 +2229,8 @@ impl UpdateWindow for PlaneWindow {
             rank: dim,
             rot: 0.0,
             p1: Point::zeros(dim),
-			p2: Point::zeros(dim),
-			po: Point::zeros(dim),
+            p2: Point::zeros(dim),
+            po: Point::zeros(dim),
             ..Default::default()
         }
     }
@@ -2238,8 +2238,8 @@ impl UpdateWindow for PlaneWindow {
     fn update(&mut self, dim: usize) {
         self.rank = dim;
         self.p1 = Point::zeros(dim);
-		self.p2 = Point::zeros(dim);
-		self.po = Point::zeros(dim);
+        self.p2 = Point::zeros(dim);
+        self.po = Point::zeros(dim);
     }
 }
 

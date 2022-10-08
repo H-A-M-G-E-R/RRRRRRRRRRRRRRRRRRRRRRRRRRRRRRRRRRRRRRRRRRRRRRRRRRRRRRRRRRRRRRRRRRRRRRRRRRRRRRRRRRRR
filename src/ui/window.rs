@@ -2010,17 +2010,24 @@ impl UpdateWindow for RotateWindow {
     fn action(&self, polytope: &mut Concrete) {
         if self.rank > 1 {
             polytope.element_sort();
-                
-            for ind in 0..self.rank-1 {
-                for v in polytope.vertices_mut() {
-                    let theta = self.rots[ind]*(6.283185307179586/self.degcheck);
-
-                    let x = v[ind]*theta.cos() - v[ind+1]*theta.sin();
-                    let y = v[ind]*theta.sin() + v[ind+1]*theta.cos();
-                    v[ind] = x;
-                    v[(ind+1)%self.rank] = y;
+            
+            let mut index = 0;
+            for r in 0..self.rank-1 {
+                for s in (r+1)..=self.rank-1 {
+                    for v in polytope.vertices_mut() {
+                        
+                        let theta = self.rots[index]*(6.283185307179586/self.degcheck);
+                        
+                        let x = v[r]*theta.cos() - v[s]*theta.sin();
+                        let y = v[r]*theta.sin() + v[s]*theta.cos();
+                        v[r] = x;
+                        v[s] = y;
+                    }
+                    index += 1; //Setting next index value
                 }
             }
+
+            println!("Object rotated!");
         } else {
             println!("Objects with rank less than 2 cannot be rotated.")
         }
@@ -2031,18 +2038,23 @@ impl UpdateWindow for RotateWindow {
     }
 
     fn build(&mut self, ui: &mut Ui) {
+        let mut index = 0;
         ui.horizontal(|ui|{
             ui.radio_value(&mut self.degcheck, 360.0, "Degrees");
             ui.radio_value(&mut self.degcheck, 6.283185307179586, "Radians");
             ui.radio_value(&mut self.degcheck, 1.0, "Turns");
         });
         for r in 0..self.rank-1 {
-            ui.horizontal(|ui| {
-                ui.add(egui::DragValue::new(&mut self.rots[r]).speed(self.degcheck/360.0).clamp_range(0.0..=self.degcheck));
-            });
+            for s in (r+1)..=self.rank-1 {
+                ui.horizontal(|ui| {
+                    ui.add(egui::DragValue::new(&mut self.rots[ index ]).speed(self.degcheck/360.0).clamp_range(0.0..=self.degcheck));
+                    ui.label("Axes ".to_owned()+&r.to_string()+" and "+&s.to_string());
+                    index += 1; //setting index value
+                });
+            }
         }
     }
-    
+
     fn dim(&self) -> usize {
         self.rank
     }
@@ -2050,14 +2062,14 @@ impl UpdateWindow for RotateWindow {
     fn default_with(dim: usize) -> Self {
         Self {
             rank: dim,
-            rots: vec![0.0001; dim], // if this is set to 0 the whole window becomes dark for some reason
+            rots: vec![0.0001; dim*(dim+1)/2], // if this is set to 0 the whole window becomes dark for some reason
             ..Default::default()
         }
     }
 
     fn update(&mut self, dim: usize) {
         self.rank = dim;
-        self.rots = vec![0.0; dim];
+        self.rots = vec![0.0; dim*(dim+1)/2];
     }
 }
 

@@ -138,6 +138,24 @@ impl Ranks {
     */
 }
 
+/// Modified binary search that finds the first element whose first element is greater than `min`.
+fn binary(vec: &Vec<(usize,usize)>, min: usize) -> usize{
+    let mut lo  = -1;
+    let mut hi  = vec.len() as isize;
+    let mut c = (lo+hi)/2;
+
+    while hi - lo > 1 {
+        if vec[c as usize].0 > min {
+            hi = c;
+        } else {
+            lo = c;
+        }
+        c = (lo+hi)/2;
+    }
+
+    hi as usize
+}
+
 /// For each faceting, checks if it is a compound of other facetings, and labels it if so.
 fn label_irc(vec: &Vec<Vec<(usize,usize)>>) -> HashMap<usize, (usize,usize)> {
     let mut out = HashMap::<usize, (usize,usize)>::new(); // Map of the index of the compound to the indices of the components.
@@ -777,13 +795,56 @@ fn faceting_subdim(
     }
 
     // Actually do the faceting
+    let mut ridge_muls = Vec::new();
+    let mut ones = vec![Vec::<(usize, usize)>::new(); ridge_counts.len()];
+
+    for (hp, list) in possible_facets.iter().enumerate() {
+        let mut ridge_muls_hp = Vec::new();
+        for (f, _) in list.iter().enumerate() {
+            let mut ridge_muls_facet = vec![0; ridge_counts.len()];
+
+            let f_count = f_counts[hp];
+
+            let ridge_idxs_local = &possible_facets[hp][f].1;
+            for ridge_idx in ridge_idxs_local {
+                let ridge_orbit = ridge_idx_orbits[hp][ridge_idx.0][ridge_idx.1];
+                let ridge_count = ff_counts[hp][ridge_idx.0];
+                let total_ridge_count = ridge_counts[ridge_orbit.0];
+                let mul = f_count * ridge_count / total_ridge_count;
+
+                if mul == 1 {
+                    ones[ridge_orbit.0].push((hp, f));
+                }
+
+                ridge_muls_facet[ridge_orbit.0] = mul;
+            }
+
+            ridge_muls_hp.push(ridge_muls_facet);
+        }
+        ridge_muls.push(ridge_muls_hp);
+    }
+
     let mut output = Vec::new();
     let mut output_facets = Vec::new();
 
-    let mut facets = vec![(0, 0)];
+    let mut facets_queue = VecDeque::<(
+        Vec<(usize, usize)>, // list of facets
+        usize, // min hyperplane
+        Vec<usize> // cached ridge muls
+    )>::new();
+
+    for (hp, list) in possible_facets.iter().enumerate() {
+        for f in 0..list.len() {
+            facets_queue.push_back((
+                vec![(hp, f)],
+                hp,
+                vec![0; ridge_counts.len()]
+            ));
+        }
+    }
 
     let mut skipped = 0;
-    'l: loop {
+    'l: while let Some((facets, min_hp, cached_ridge_muls)) = facets_queue.pop_back() {
         if uniform {
             if now.elapsed().as_millis() > DELAY && print_faceting_count {
                 print!("{}", CL);
@@ -800,67 +861,42 @@ fn faceting_subdim(
             }
         }
         
-        loop {
-            let t = facets.last_mut().unwrap();
-            if t.0 >= possible_facets.len() {
-                facets.pop();
-                if facets.is_empty() {
-                    break 'l;
-                }
-                let t2 = facets.last_mut().unwrap();
-                if t2.1 + 1 >= possible_facets[t2.0].len() {
-                    t2.0 += 1;
-                    t2.1 = 0;
-                }
-                else {
-                    t2.1 += 1;
-                }
-            }
-            else if t.1 >= possible_facets[t.0].len() {
-                t.0 += 1;
-                t.1 = 0;
-            }
-            else {
-                break
-            }
-        }
-        let mut ridges = vec![0; ridge_counts.len()];    
+        let mut new_ridge_muls = cached_ridge_muls.clone();
 
-        'a: for facet in &facets {
-            let hp = facet.0;
-            let f = facet.1;
-            let f_count = f_counts[hp];
+        let last_facet = facets.last().unwrap();
+
+        'a: loop {
+            let hp = last_facet.0;
+            let f = last_facet.1;
 
             let ridge_idxs_local = &possible_facets[hp][f].1;
             for ridge_idx in ridge_idxs_local {
                 let ridge_orbit = ridge_idx_orbits[hp][ridge_idx.0][ridge_idx.1];
-                let ridge_count = ff_counts[hp][ridge_idx.0];
-                let total_ridge_count = ridge_counts[ridge_orbit.0];
-                let mut mul = f_count * ridge_count / total_ridge_count;
+                let mut mul = ridge_muls[hp][f][ridge_orbit.0];
                 if ridge_orbit.1 { // disentangled ridge
                     mul /= 2;
                 }
 
-                ridges[ridge_orbit.0] += mul;
-                if !exotic && ridges[ridge_orbit.0] > 2 {
+                new_ridge_muls[ridge_orbit.0] += mul;
+                if !exotic && new_ridge_muls[ridge_orbit.0] > 2 {
                     break 'a;
                 }
             }
+            break;
         }
         let mut valid = 0; // 0: valid, 1: exotic, 2: incomplete
-        if exotic {
-            for r in ridges {
-                if r % 2 == 1 {
-                    valid = 2
+        for r in &new_ridge_muls {
+            if exotic {
+                if *r % 2 == 1 {
+                    valid = 2;
+                    break
                 }
-            }
-        } else {
-            for r in ridges {
-                if r > 2 {
+            } else {
+                if *r > 2 {
                     valid = 1;
                     break
                 }
-                if r == 1 {
+                if *r == 1 {
                     valid = 2;
                 }
             }
@@ -1109,34 +1145,44 @@ fn faceting_subdim(
                         break 'l;
                     }
                 }
-
                 if include_compounds {
-                    let t = facets.last().unwrap().clone();
-                    facets.push((t.0 + 1, 0));
-                } else {
-                    let t = facets.last_mut().unwrap();
-                    if t.1 == possible_facets[t.0].len() - 1 {
-                        t.0 += 1;
-                        t.1 = 0;
+                    if noble_package.is_none() {
+                        let mut used_hps = HashSet::new();
+                        for facet in facets.iter().skip(1) {
+                            used_hps.insert(facet.0);
+                        }
+                        for (hp, list) in possible_facets.iter().enumerate().skip(min_hp+1) {
+                            if !used_hps.contains(&hp) {
+                                for f in 0..list.len() {
+                                    let mut new_facets = facets.clone();
+                                    new_facets.push((hp, f));
+                                    facets_queue.push_back((new_facets, hp, new_ridge_muls.clone()));
+                                }
+                            }
+                        }
                     }
-                    else {
-                        t.1 += 1;
-                    }
-                }
-            }
-            1 => {
-                let t = facets.last_mut().unwrap();
-                if t.1 == possible_facets[t.0].len() - 1 {
-                    t.0 += 1;
-                    t.1 = 0;
-                }
-                else {
-                    t.1 += 1;
                 }
             }
             2 => {
-                let t = facets.last().unwrap().clone();
-                facets.push((t.0 + 1, 0));
+                let mut used_hps = HashSet::new();
+                for facet in facets.iter().skip(1) {
+                    used_hps.insert(facet.0);
+                }
+                for (idx, mul) in new_ridge_muls.iter().enumerate() {
+                    if *mul == 1 {
+                        for facet in ones[idx]
+                            .iter()
+                            .skip(binary(&ones[idx], min_hp))
+                        {
+                            if !used_hps.contains(&facet.0) {
+                                let mut new_facets = facets.clone();
+                                new_facets.push(*facet);
+                                facets_queue.push_back((new_facets, min_hp, new_ridge_muls.clone()));
+                            }
+                        }
+                        break;
+                    }
+                }
             }
             _ => {}
         }
@@ -1919,78 +1965,99 @@ impl Concrete {
 
             // Actually do the faceting
             println!("\n\nCombining...");
+
+            let mut ridge_muls = Vec::new();
+            let mut ones = vec![Vec::<(usize, usize)>::new(); ridge_counts.len()];
+
+            for (hp, list) in possible_facets.iter().enumerate() {
+                let mut ridge_muls_hp = Vec::new();
+                for (f, _) in list.iter().enumerate() {
+                    let mut ridge_muls_facet = vec![0; ridge_counts.len()];
+
+                    let f_count = f_counts[hp];
+    
+                    let ridge_idxs_local = &possible_facets[hp][f].1;
+                    for ridge_idx in ridge_idxs_local {
+                        let ridge_orbit = ridge_idx_orbits[hp][ridge_idx.0][ridge_idx.1];
+                        let ridge_count = ff_counts[hp][ridge_idx.0];
+                        let total_ridge_count = ridge_counts[ridge_orbit.0];
+                        let mul = f_count * ridge_count / total_ridge_count;
+
+                        if mul == 1 {
+                            ones[ridge_orbit.0].push((hp, f));
+                        }
+        
+                        ridge_muls_facet[ridge_orbit.0] = mul;
+                    }
+
+                    ridge_muls_hp.push(ridge_muls_facet);
+                }
+                ridge_muls.push(ridge_muls_hp);
+            }
+
             let mut output_facets = Vec::new();
 
-            let mut facets = vec![(0, 0)];
+            let mut facets_queue = VecDeque::<(
+                Vec<(usize, usize)>, // list of facets
+                usize, // min hyperplane
+                Vec<usize> // cached ridge muls
+            )>::new();
 
-            'l: loop {
+            for (hp, list) in possible_facets.iter().enumerate() {
+                for f in 0..list.len() {
+                    facets_queue.push_back((
+                        vec![(hp, f)],
+                        hp,
+                        vec![0; ridge_counts.len()]
+                    ));
+                }
+            }
+
+            while let Some((facets, min_hp, cached_ridge_muls)) = facets_queue.pop_back() {
+
                 if now.elapsed().as_millis() > DELAY {
                     print!("{}", CL);
                     print!("{:.115}", format!("{} facetings, {:?}", output_facets.len(), facets));
                     std::io::stdout().flush().unwrap();
                     now = Instant::now();
                 }
-                loop {
-                    let t = facets.last_mut().unwrap();
-                    if t.0 >= possible_facets.len() {
-                        facets.pop();
-                        if facets.is_empty() {
-                            break 'l;
-                        }
-                        let t2 = facets.last_mut().unwrap();
-                        if t2.1 + 1 >= possible_facets[t2.0].len() {
-                            t2.0 += 1;
-                            t2.1 = 0;
-                        }
-                        else {
-                            t2.1 += 1;
-                        }
-                    }
-                    else if t.1 >= possible_facets[t.0].len() {
-                        t.0 += 1;
-                        t.1 = 0;
-                    }
-                    else {
-                        break
-                    }
-                }
-                let mut ridges = vec![0; ridge_counts.len()];    
 
-                'a: for facet in &facets {
-                    let hp = facet.0;
-                    let f = facet.1;
-                    let f_count = f_counts[hp];
+                let mut new_ridge_muls = cached_ridge_muls.clone();
+
+                let last_facet = facets.last().unwrap();
+
+                'a: loop {
+                    let hp = last_facet.0;
+                    let f = last_facet.1;
 
                     let ridge_idxs_local = &possible_facets[hp][f].1;
                     for ridge_idx in ridge_idxs_local {
                         let ridge_orbit = ridge_idx_orbits[hp][ridge_idx.0][ridge_idx.1];
-                        let ridge_count = ff_counts[hp][ridge_idx.0];
-                        let total_ridge_count = ridge_counts[ridge_orbit.0];
-                        let mut mul = f_count * ridge_count / total_ridge_count;
+                        let mut mul = ridge_muls[hp][f][ridge_orbit.0];
                         if ridge_orbit.1 { // disentangled ridge
                             mul /= 2;
                         }
         
-                        ridges[ridge_orbit.0] += mul;
-                        if !exotic && ridges[ridge_orbit.0] > 2 {
+                        new_ridge_muls[ridge_orbit.0] += mul;
+                        if !exotic && new_ridge_muls[ridge_orbit.0] > 2 {
                             break 'a;
                         }
                     }
+                    break;
                 }
                 let mut valid = 0; // 0: valid, 1: exotic, 2: incomplete
-                if exotic {
-                    for r in ridges {
-                        if r % 2 == 1 {
-                            valid = 2
+                for r in &new_ridge_muls {
+                    if exotic {
+                        if *r % 2 == 1 {
+                            valid = 2;
+                            break
                         }
-                    }
-                } else {
-                    for r in ridges {
-                        if r > 2 {
+                    } else {
+                        if *r > 2 {
                             valid = 1;
                             break
                         }
-                        if r == 1 {
+                        if *r == 1 {
                             valid = 2;
                         }
                     }
@@ -2023,57 +2090,50 @@ impl Concrete {
 
                         if let Some(max_facets) = noble {
                             if facets.len() == max_facets {
-                                let t = facets.last_mut().unwrap();
-                                if t.1 == possible_facets[t.0].len() - 1 {
-                                    t.0 += 1;
-                                    t.1 = 0;
-                                }
-                                else {
-                                    t.1 += 1;
-                                }
-                                continue
+                                continue;
                             }
                         }
                         if include_compounds {
-                            let t = facets.last().unwrap().clone();
-                            facets.push((t.0 + 1, 0));
-                        } else {
-                            let t = facets.last_mut().unwrap();
-                            if t.1 == possible_facets[t.0].len() - 1 {
-                                t.0 += 1;
-                                t.1 = 0;
+                            let mut used_hps = HashSet::new();
+                            for facet in facets.iter().skip(1) {
+                                used_hps.insert(facet.0);
                             }
-                            else {
-                                t.1 += 1;
+                            for (hp, list) in possible_facets.iter().enumerate().skip(min_hp+1) {
+                                if !used_hps.contains(&hp) {
+                                    for f in 0..list.len() {
+                                        let mut new_facets = facets.clone();
+                                        new_facets.push((hp, f));
+                                        facets_queue.push_back((new_facets, hp, new_ridge_muls.clone()));
+                                    }
+                                }
                             }
-                        }
-                    }
-                    1 => {
-                        let t = facets.last_mut().unwrap();
-                        if t.1 == possible_facets[t.0].len() - 1 {
-                            t.0 += 1;
-                            t.1 = 0;
-                        }
-                        else {
-                            t.1 += 1;
                         }
                     }
                     2 => {
                         if let Some(max_facets) = noble {
                             if facets.len() == max_facets {
-                                let t = facets.last_mut().unwrap();
-                                if t.1 == possible_facets[t.0].len() - 1 {
-                                    t.0 += 1;
-                                    t.1 = 0;
-                                }
-                                else {
-                                    t.1 += 1;
-                                }
-                                continue
+                                continue;
                             }
                         }
-                        let t = facets.last().unwrap().clone();
-                        facets.push((t.0 + 1, 0));
+                        let mut used_hps = HashSet::new();
+                        for facet in facets.iter().skip(1) {
+                            used_hps.insert(facet.0);
+                        }
+                        for (idx, mul) in new_ridge_muls.iter().enumerate() {
+                            if *mul == 1 {
+                                for facet in ones[idx]
+                                    .iter()
+                                    .skip(binary(&ones[idx], min_hp))
+                                {
+                                    if !used_hps.contains(&facet.0) {
+                                        let mut new_facets = facets.clone();
+                                        new_facets.push(*facet);
+                                        facets_queue.push_back((new_facets, min_hp, new_ridge_muls.clone()));
+                                    }
+                                }
+                                break;
+                            }
+                        }
                     }
                     _ => {}
                 }

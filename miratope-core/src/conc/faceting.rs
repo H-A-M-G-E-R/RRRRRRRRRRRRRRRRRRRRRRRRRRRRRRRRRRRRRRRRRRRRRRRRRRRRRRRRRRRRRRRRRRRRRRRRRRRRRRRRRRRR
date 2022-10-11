@@ -397,7 +397,6 @@ fn faceting_subdim(
         for tuple in tuple_orbits {
             'a: for new_vertex in tuple[tuple.len()-1]..points.len() {
                 if now.elapsed().as_millis() > DELAY {
-                    print!("{}", CL);
                     print!("{}{} {}-plane orbits, verts {:?}", CL, new_tuple_orbits.len(), number-1, tuple);
                     std::io::stdout().flush().unwrap();
                     now = Instant::now();
@@ -436,7 +435,7 @@ fn faceting_subdim(
                 checked.insert(new_tuple);
             }
         }
-        println!("{}{} {}-plane orbit{}", CL, new_tuple_orbits.len(), number-1, if new_tuple_orbits.len() == 1 {""} else {"s"});
+        print!("{}{} {}-plane orbit{}", CL, new_tuple_orbits.len(), number-1, if new_tuple_orbits.len() == 1 {""} else {"s"});
         tuple_orbits = new_tuple_orbits.iter().map(|x| x.clone()).collect();
     }
     

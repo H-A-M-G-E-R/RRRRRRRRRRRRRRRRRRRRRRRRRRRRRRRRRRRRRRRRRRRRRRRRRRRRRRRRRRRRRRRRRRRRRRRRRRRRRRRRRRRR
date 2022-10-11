@@ -379,6 +379,7 @@ fn faceting_subdim(
         for tuple in tuple_orbits {
             'a: for new_vertex in tuple[tuple.len()-1]..points.len() {
                 if now.elapsed().as_millis() > DELAY {
+                    print!("{}", CL);
                     print!("{}{} {}-plane orbits, verts {:?}", CL, new_tuple_orbits.len(), number-1, tuple);
                     std::io::stdout().flush().unwrap();
                     now = Instant::now();

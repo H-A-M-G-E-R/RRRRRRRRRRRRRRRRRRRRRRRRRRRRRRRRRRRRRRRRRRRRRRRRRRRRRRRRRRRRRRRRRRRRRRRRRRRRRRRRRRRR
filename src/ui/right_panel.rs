@@ -264,12 +264,12 @@ pub fn show_right_panel(
                                 }
 
                                 if let SectionState::Active{..} = section_state.clone() {
-                                    if section_direction[0].0.len() == rank-1 { // Checks if the sliced polytope and the polytope the types are of have the same rank.
+                                    if section_direction[0].0.len() == poly.dim().unwrap() { // Checks if the sliced polytope and the polytope the types are of have the same dimension.
                                         if ui.button("Align slice").clicked() {
                                             if let Some(element) = poly.element(r,i) {
                                                 section_direction[0] = SectionDirection(Vector::from(Point::from(
                                                     Subspace::from_points(element.vertices.iter())
-                                                        .project(&Point::zeros(rank-1))
+                                                        .project(&Point::zeros(poly.dim().unwrap()))
                                                         .normalize()
                                                 )));
                                             }

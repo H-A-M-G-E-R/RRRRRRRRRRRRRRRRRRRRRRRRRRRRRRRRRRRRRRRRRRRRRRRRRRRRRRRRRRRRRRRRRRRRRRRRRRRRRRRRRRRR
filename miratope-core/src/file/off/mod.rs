@@ -199,6 +199,51 @@ impl<'a> TokenIter<'a> {
             .ok_or(OffParseError::UnexpectedEnding(self.position))?
             .parse()
     }
+
+    fn gta6(&mut self) -> Vec<f64> {
+        loop {
+            let (mut idx, mut c) = self.iter.next().unwrap();
+            let init_idx = idx;
+            let mut end_idx = init_idx;
+
+            loop {
+                match c {
+                    '#' => {
+                        self.comment = true;
+                        self.position.next();
+                    }
+
+                    '\n' => {
+                        self.comment = false;
+                        self.position.next_line();
+                        break;
+                    }
+
+                    _ => self.position.next(),
+                }
+
+                if self.comment {
+                    break;
+                }
+
+                end_idx = idx;
+                if let Some((new_idx, new_c)) = self.iter.next() {
+                    idx = new_idx;
+                    c = new_c;
+                } else {
+                    idx += 1;
+                    break;
+                }
+            }
+
+            if init_idx != idx {
+                let a: Vec<f64> = self.src[init_idx..=end_idx].split_whitespace().map(|x| f64::from_str(x).unwrap()).collect();
+                if !a.is_empty() {
+                    return a
+                }
+            }
+        }
+    }
 }
 
 impl<'a> Iterator for TokenIter<'a> {
@@ -279,20 +324,13 @@ impl<'a> OffReader<'a> {
     fn parse_vertices(
         &mut self,
         count: usize,
-        dim: usize,
     ) -> OffParseResult<Vec<Point<f64>>> {
         // Reads all vertices.
         let mut vertices = Vec::with_capacity(count);
 
         // Add each vertex to the vector.
         for _ in 0..count {
-            let mut v = Vec::with_capacity(dim);
-
-            for _ in 0..dim {
-                v.push(self.iter.parse_next()?);
-            }
-
-            vertices.push(Point::from_vec(v.clone()));
+            vertices.push(Point::from_vec(self.iter.gta6().clone()));
         }
 
         Ok(vertices)
@@ -420,7 +458,7 @@ impl<'a> OffReader<'a> {
 
         // Reads the element numbers and vertices.
         let num_elems = self.el_nums(rank)?;
-        let vertices = self.parse_vertices(num_elems[0], rank - 1)?;
+        let vertices = self.parse_vertices(num_elems[0])?;
 
         // Adds nullitope and vertices.
         self.abs.reserve(rank + 2);

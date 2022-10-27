@@ -17,6 +17,7 @@ impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<CameraInputEvent>()
             .init_resource::<ProjectionType>()
+            .init_resource::<FillingType>()
             // We register inputs after the library has been shown, so that we
             // know whether mouse input should register.
             .add_system(add_cam_input_events.system().after("show_library"))
@@ -51,6 +52,36 @@ impl ProjectionType {
     /// Returns whether the projection type is `Orthogonal`.
     pub fn is_orthogonal(&self) -> bool {
         matches!(self, Self::Orthogonal)
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum FillingType {
+    /// We're using binary filling.
+    BinaryFilling,
+
+    /// We're using density filling.
+    DensityFilling,
+}
+
+impl Default for FillingType {
+    fn default() -> Self {
+        Self::DensityFilling
+    }
+}
+
+impl FillingType {
+    /// Flips the filling type for polygons.
+    pub fn flip(&mut self) {
+        match self {
+            Self::BinaryFilling => *self = Self::DensityFilling,
+            Self::DensityFilling => *self = Self::BinaryFilling,
+        }
+    }
+
+    /// Returns whether the filling type is `DensityFilling`.
+    pub fn is_binary(&self) -> bool {
+        matches!(self, Self::BinaryFilling)
     }
 }
 

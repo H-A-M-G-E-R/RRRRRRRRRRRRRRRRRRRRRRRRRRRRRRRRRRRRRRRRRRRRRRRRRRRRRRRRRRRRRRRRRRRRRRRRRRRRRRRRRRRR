@@ -1,7 +1,7 @@
 //! The systems that update the main window.
 
 use super::right_panel::ElementTypesRes;
-use super::{camera::ProjectionType, top_panel::SectionState};
+use super::{camera::{ProjectionType, FillingType}, top_panel::SectionState};
 use crate::mesh::Renderable;
 use crate::Concrete;
 
@@ -69,6 +69,7 @@ pub fn update_changed_polytopes(
     name: Res<'_, PolyName>,
 
     orthogonal: Res<'_, ProjectionType>,
+    density: Res<'_, FillingType>,
 ) {
     for (mut poly, mesh_handle, children) in polies.iter_mut() {
         poly.untangle_faces();
@@ -82,7 +83,7 @@ pub fn update_changed_polytopes(
             element_types.main_updating = false;
         }
 
-        *meshes.get_mut(mesh_handle).unwrap() = poly.mesh(*orthogonal);
+        *meshes.get_mut(mesh_handle).unwrap() = poly.mesh(*orthogonal, *density);
 
         // Updates all wireframes.
         for child in children.iter() {

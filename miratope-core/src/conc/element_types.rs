@@ -46,6 +46,13 @@ pub const EL_NAMES: [&str; 25] = [
     "Ika", "Ikena", "Ikoda", "Iktra",
 ];
 
+/// Names of elements of each rank, singular.
+pub const EL_NAMES_SINGULAR: [&str; 25] = [
+    "", "Vertex", "Edge", "Face", "Cell", "Teron", "Peton", "Exon", "Zetton", "Yotton", "Xennon",
+    "Dakon", "Hendon", "Dokon", "Tradakon", "Tedakon", "Pedakon", "Exdakon", "Zedakon", "Yodakon", "Nedakon",
+    "Ikon", "Ikenon", "Ikodon", "Iktron",
+];
+
 /// Suffixes of elements of each rank.
 pub const EL_SUFFIXES: [&str; 25] = [
     "", "", "telon", "gon", "hedron", "choron", "teron", "peton", "exon", "zetton", "yotton",

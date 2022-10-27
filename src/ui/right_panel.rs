@@ -7,18 +7,18 @@ use bevy_egui::{
     egui,
     EguiContext,
 };
-use miratope_core::{conc::{element_types::{EL_NAMES, EL_SUFFIXES}, ConcretePolytope}, Polytope, abs::Ranked, geometry::{Subspace, Point, Vector}};
+use miratope_core::{conc::{element_types::{EL_NAMES, EL_NAMES_SINGULAR, EL_SUFFIXES}, ConcretePolytope}, Polytope, abs::Ranked, geometry::{Subspace, Point, Vector}};
 use vec_like::VecLike;
 
-use super::{top_panel::{SectionDirection, SectionState}, main_window::PolyName};
+use super::{top_panel::{SectionDirection, SectionState}, main_window::PolyName, window::{WikiWindow, Window}};
 
 #[derive(Clone, Copy, Debug)]
-struct ElementTypeWithData {
+pub struct ElementTypeWithData {
     /// The index of the representative for this element type.
     example: usize,
 
     /// The number of elements of this type.
-    count: usize,
+    pub count: usize,
 
     /// The number of facets.
     facets: usize,
@@ -37,13 +37,13 @@ pub struct ElementTypesRes {
     active: bool,
 
     /// The polytope whose data we're getting.
-    poly: Concrete,
+    pub poly: Concrete,
 
     /// The name of the polytope.
-    poly_name: String,
+    pub poly_name: String,
 
     /// The element types.
-    types: Vec<Vec<ElementTypeWithData>>,
+    pub types: Vec<Vec<ElementTypeWithData>>,
 
     /// The components.
     components: Option<Vec<Concrete>>,
@@ -159,7 +159,9 @@ pub fn show_right_panel(
     // The Miratope resources controlled by the right panel.
     mut element_types: ResMut<'_, ElementTypesRes>,
     mut section_direction: ResMut<'_, Vec<SectionDirection>>,
-    section_state: Res<'_, SectionState>
+    section_state: Res<'_, SectionState>,
+
+    mut wiki_window: ResMut<'_, WikiWindow>,
 ) {
     // The right panel.
     egui::SidePanel::right("right_panel")
@@ -182,6 +184,10 @@ pub fn show_right_panel(
                         *p = element_types.poly.clone();
                         poly_name.0 = element_types.poly_name.clone();
                     }
+                }
+
+                if ui.add(egui::Button::new("Wiki").enabled(element_types.active)).clicked() {
+                    wiki_window.open();
                 }
             });
 
@@ -218,9 +224,16 @@ pub fn show_right_panel(
                                     if let Some(mut p) = query.iter_mut().next() {
                                         if let Some(mut element) = poly.element(r,i) {
                                             element.flatten();
-                                            element.recenter();
+                                            if let Some(sphere) = element.circumsphere() {
+                                                element.recenter_with(&sphere.center);
+                                            } else {
+                                                element.recenter();
+                                            }
                                             *p = element;
-                                            poly_name.0 = format!("Element of {}",element_types.poly_name.clone());
+                                            poly_name.0 = format!("{} of {}",
+                                            if r >= EL_NAMES_SINGULAR.len() {"".to_string()}
+                                            else {EL_NAMES_SINGULAR[r].to_string()},
+                                            element_types.poly_name.clone());
                                         } else {
                                             eprintln!("Element failed: no element at rank {}, index {}", r, i);
                                         }
@@ -239,7 +252,10 @@ pub fn show_right_panel(
                                                 figure.flatten();
                                                 figure.recenter();
                                                 *p = figure;
-                                                poly_name.0 = format!("Figure of {}",element_types.poly_name.clone());
+                                                poly_name.0 = format!("{} figure of {}",
+                                                if r >= EL_NAMES_SINGULAR.len() {"".to_string()}
+                                                else {EL_NAMES_SINGULAR[r].to_string()},
+                                                element_types.poly_name.clone());
                                             }
                                             Ok(None) => eprintln!("Figure failed: no element at rank {}, index {}", r, i),
                                             Err(err) => eprintln!("Figure failed: {}", err),
@@ -248,12 +264,12 @@ pub fn show_right_panel(
                                 }
 
                                 if let SectionState::Active{..} = section_state.clone() {
-                                    if section_direction[0].0.len() == rank-1 { // Checks if the sliced polytope and the polytope the types are of have the same rank.
+                                    if section_direction[0].0.len() == poly.dim().unwrap() { // Checks if the sliced polytope and the polytope the types are of have the same dimension.
                                         if ui.button("Align slice").clicked() {
                                             if let Some(element) = poly.element(r,i) {
                                                 section_direction[0] = SectionDirection(Vector::from(Point::from(
                                                     Subspace::from_points(element.vertices.iter())
-                                                        .project(&Point::zeros(rank-1))
+                                                        .project(&Point::zeros(poly.dim().unwrap()))
                                                         .normalize()
                                                 )));
                                             }

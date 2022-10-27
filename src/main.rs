@@ -17,9 +17,10 @@ use bevy::render::{camera::PerspectiveProjection, pipeline::PipelineDescriptor};
 use bevy_egui::EguiPlugin;
 use miratope_core::file::FromFile;
 use no_cull_pipeline::PbrNoBackfaceBundle;
+use rand::prelude::*;
 
 use ui::{
-    camera::{CameraInputEvent, ProjectionType},
+    camera::{CameraInputEvent, ProjectionType, FillingType},
     MiratopePlugins,
 };
 
@@ -99,12 +100,12 @@ fn setup(
     );
 
     // Wireframe material.
-    let wf_material = materials.set(WIREFRAME_UNSELECTED_MATERIAL, Color::rgb_u8(150, 150, 150).into());
+    let wf_material = materials.set(WIREFRAME_UNSELECTED_MATERIAL, Color::rgb_u8(thread_rng().gen_range(0..=255), thread_rng().gen_range(0..=255), thread_rng().gen_range(0..=255)).into());
 
     // Mesh material.
     let mesh_material = materials.add(StandardMaterial {
-        base_color: Color::rgb_u8(255, 255, 255),
-        metallic: 0.2,
+        base_color: Color::rgb_u8(thread_rng().gen_range(0..=255), thread_rng().gen_range(0..=255), thread_rng().gen_range(0..=255)),
+        metallic: 1000000.0,
         ..Default::default()
     });
 
@@ -117,7 +118,7 @@ fn setup(
         .spawn()
         // Mesh
         .insert_bundle(PbrNoBackfaceBundle {
-            mesh: meshes.add(poly.mesh(ProjectionType::Perspective)),
+            mesh: meshes.add(poly.mesh(ProjectionType::Perspective, FillingType::DensityFilling)),
             material: mesh_material,
             ..Default::default()
         })

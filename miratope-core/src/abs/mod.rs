@@ -409,23 +409,32 @@ impl Abstract {
                     }
                 }
                 let mut valid = true;
-                let mut prev = 123456789; // yes violeta idk how to use None or something
+                let mut prev = None;
                 for j in flag_changes_of_el {
-                    // same component
-                    if j == prev + 1 {
-                        if !valid {
+                    match prev {
+                        Some(i) => {
+                            // same component
+                            if j == i + 1 {
+                                if !valid {
+                                    valid = cd[j];
+                                }
+                            }
+                            // different component
+                            else {
+                                if !valid {
+                                    break;
+                                }
+                                valid = cd[j];
+                            }
+                        }
+                        None => {
+                            if !valid {
+                                break;
+                            }
                             valid = cd[j];
                         }
                     }
-                    // different component
-                    else {
-                        if !valid {
-                            break;
-                        }
-                        valid = cd[j];
-                    }
-
-                    prev = j;
+                    prev = Some(j);
                 }
                 if !valid {
                     // is degenerate
@@ -690,6 +699,10 @@ impl Polytope for Abstract {
 
     fn petrie_polygon_with(&mut self, flag: Flag) -> Option<Self> {
         Some(Self::polygon(self.petrie_polygon_vertices(flag)?.len()))
+    }
+
+    fn other_skew_with(&mut self, flag: Flag) -> Option<Self> {
+        Some(Self::polygon(self.other_skew_vertices(flag)?.len()))
     }
 
     /// Builds an [antiprism](https://polytope.miraheze.org/wiki/Antiprism)

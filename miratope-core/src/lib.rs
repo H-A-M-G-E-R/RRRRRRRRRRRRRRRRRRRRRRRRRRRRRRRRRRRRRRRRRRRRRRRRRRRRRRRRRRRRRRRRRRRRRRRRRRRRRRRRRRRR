@@ -1,5 +1,4 @@
 #![deny(
-    missing_docs,
     nonstandard_style,
     unused_parens,
     unused_qualifications,
@@ -16,7 +15,7 @@
 )]*/
 
 //! This is the main dependency of
-//! [Miratope](https://github.com/vihdzp/miratope-rs). It contains all code
+//! [Miratope](https://github.com/H-A-M-G-E-R/miratope-rs). It contains all code
 //! to build and name [`Abstract`] and [`Concrete`](conc::Concrete) polytopes
 //! alike.
 //!
@@ -42,9 +41,10 @@ use abs::{
 use vec_like::VecLike;
 
 /// The names for 0-elements, 1-elements, 2-elements, and so on.
-const ELEMENT_NAMES: [&str; 12] = [
+const ELEMENT_NAMES: [&str; 25] = [
     "", "Vertices", "Edges", "Faces", "Cells", "Tera", "Peta", "Exa", "Zetta", "Yotta", "Xenna",
-    "Daka",
+    "Daka", "Henda", "Doka", "Tradaka", "Tedaka", "Pedaka", "Exdaka", "Zedaka", "Yodaka", "Nedaka",
+    "Ika", "Ikena", "Ikoda", "Iktra",
 ];
 
 /// The word "Components".
@@ -369,9 +369,57 @@ pub trait Polytope:
         (flag == new_flag).then(|| vertices)
     }
 
+    fn other_skew_vertices(&self, flag: Flag) -> Option<Vec<usize>> {
+        let rank = self.rank();
+        let mut new_flag = flag.clone();
+        let first_vertex = flag[1];
+        let mut vertices = Vec::new();
+        let mut vertex_hash = HashSet::new();
+
+        assert!(self.abs().sorted());
+
+        loop {
+            for idx in 1..rank - 1 {
+                new_flag.change_mut(self.abs(), idx);
+            }
+
+            let new_vertex = new_flag[1];
+            if vertex_hash.contains(&new_vertex) {
+                return None;
+            }
+
+            vertices.push(new_vertex);
+            vertex_hash.insert(new_vertex);
+
+            if new_vertex == first_vertex {
+                break;
+            }
+
+            for idx in 1..rank {
+                new_flag.change_mut(self.abs(), idx);
+            }
+
+            let new_vertex = new_flag[1];
+            if vertex_hash.contains(&new_vertex) {
+                return None;
+            }
+
+            vertices.push(new_vertex);
+            vertex_hash.insert(new_vertex);
+
+            if new_vertex == first_vertex {
+                break;
+            }
+        }
+
+        (flag == new_flag).then(|| vertices)
+    }
+
     /// Builds a Petrie polygon from a given flag of the polytope. Returns
     /// `None` if this Petrie polygon is invalid.
     fn petrie_polygon_with(&mut self, flag: Flag) -> Option<Self>;
+
+    fn other_skew_with(&mut self, flag: Flag) -> Option<Self>;
 
     /// Returns the first [`Flag`] of a polytope. This is the flag built when we
     /// start at the maximal element and repeatedly take the first subelement.

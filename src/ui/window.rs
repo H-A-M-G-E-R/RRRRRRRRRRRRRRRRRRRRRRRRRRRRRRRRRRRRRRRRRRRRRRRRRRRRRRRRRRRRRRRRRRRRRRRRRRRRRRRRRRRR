@@ -3,21 +3,33 @@
 //! All windows are l&mut &mut oaded in parallel, before the top panel and the library are
 //! shown on screen.
 
-use std::marker::PhantomData;
+use std::{marker::PhantomData, cmp::min};
 
 use super::{
     memory::{slot_label, Memory},
     PointWidget,
+    wiki::{WikiArticle, LinkType, Infobox, InfoboxField}, right_panel::ElementTypesRes,
 };
-use crate::{Concrete, Float, Hypersphere, Point, ui::main_window::PolyName};
+use crate::{Concrete, Float, Hypersphere, Point, ui::{main_window::PolyName, wiki::WikiElement}};
 
-use miratope_core::{conc::ConcretePolytope, Polytope};
+use egui::TextEdit;
+use miratope_core::{conc::{ConcretePolytope, element_types::EL_NAMES}, Polytope, abs::Ranked};
 
 use bevy::prelude::*;
 use bevy_egui::{
-    egui::{self, CtxRef, Layout, Ui, Widget},
+    egui::{self, Button, CtxRef, Layout, Ui, Widget},
     EguiContext,
 };
+
+// https://users.rust-lang.org/t/nice-floating-point-number-formatting/13213/6
+fn n_decimals(value: f64, digits: usize) -> String {
+    format!("{:.*}",
+        if value.abs() < 5e-11 {0}
+        else if value.abs() >= 1. {digits}
+        else {min(10, digits + -value.abs().log10().floor() as usize - 1)},
+        value
+    )
+}
 
 /// The text on the loaded polytope slot.
 const LOADED_LABEL: &str = "(Loaded polytope)";
@@ -56,8 +68,9 @@ impl Plugin for WindowPlugin {
             .add_plugin(TruncateWindow::plugin())
             .add_plugin(ScaleWindow::plugin())
             .add_plugin(FacetingSettings::plugin())
-			.add_plugin(RotateWindow::plugin())
-			.add_plugin(PlaneWindow::plugin());
+            .add_plugin(RotateWindow::plugin())
+            .add_plugin(PlaneWindow::plugin())
+            .add_plugin(WikiWindow::plugin());
     }
 }
 
@@ -1520,12 +1533,27 @@ pub struct FacetingSettings {
     /// The maximum number of facets generated in each hyperplane, to prevent combinatorial explosion. 0 for no limit.
     pub max_per_hyperplane: usize,
 
+    /// The minimum number of vertices per hyperplane. 0 for no limit.
+    pub min_vertices_per_hyperplane: usize,
+
+    /// The maximum number of vertices per hyperplane. 0 for no limit.
+    pub max_vertices_per_hyperplane: usize,
+
+    /// Whether to use a kept vertex orbit.
+    pub do_kept_vertex_orbit: bool,
+
+    /// The kept vertex orbit.
+    pub kept_vertex_orbit: usize,
+
     /// Where to get the symmetry group from.
     pub group: GroupEnum2,
 
     /// Whether to check for all possible edge lengths and facet with each of them.
     /// If `false`, allows picking a range of edge lengths.
     pub any_single_edge_length: bool,
+
+    /// Whether to exclude unit edges and radius edges.
+    pub exclude_unit_edges: bool,
 
     // These can't just be `Option`s because you need checkboxes and stuff.
     /// Whether to use a minimum edge length.
@@ -1555,11 +1583,23 @@ pub struct FacetingSettings {
     /// Whether to exclude planes passing through the origin.
     pub exclude_hemis: bool,
 
+    /// The minimum number of copies of a hyperplane per orbit. 0 for no limit.
+    pub min_hyperplane_copies: usize,
+
+    /// The maximum number of copies of a hyperplane per orbit. 0 for no limit.
+    pub max_hyperplane_copies: usize,
+
+    /// The maximum number of hyperplane orbits before quitting enumerating hyperplanes. 0 for no limit.
+    pub max_hyperplane_orbits: usize,
+
     /// Whether to only consider hyperplanes perpendicular to a vertex.
     pub only_below_vertex: bool,
 
     /// Whether to include trivial compounds (compounds of other full-symmetric facetings).
     pub compounds: bool,
+
+    /// Whether to include trivial compounds in elements.
+    pub compound_elements: bool,
 
     /// Whether to check if the faceting is compound or fissary and mark it.
     pub mark_fissary: bool,
@@ -1581,6 +1621,20 @@ pub struct FacetingSettings {
 
     /// The path to save to, if saving to file.
     pub file_path: String,
+
+    pub r: bool,
+
+    /// Whether to include exotics.
+    pub exotic: bool,
+
+    /// Whether to include exotic elements.
+    pub exotic_elements: bool,
+
+    /// Whether to do skew rank.
+    pub do_skew_rank: bool,
+
+    /// The rank we want to facet a skew polytope on. Example: x6o4o|x3o from a decachoron.
+    pub skew_rank: usize
 }
 
 impl Default for FacetingSettings {
@@ -1591,8 +1645,13 @@ impl Default for FacetingSettings {
             slot: Slot::default(),
             max_facet_types: 0,
             max_per_hyperplane: 0,
+            min_vertices_per_hyperplane: 0,
+            max_vertices_per_hyperplane: 0,
+            do_kept_vertex_orbit: false,
+            kept_vertex_orbit: 0,
             group: GroupEnum2::Chiral(false),
             any_single_edge_length: false,
+            exclude_unit_edges: false,
             do_min_edge_length: true,
             min_edge_length: 1.,
             do_max_edge_length: true,
@@ -1602,15 +1661,24 @@ impl Default for FacetingSettings {
             do_max_inradius: false,
             max_inradius: 0.,
             exclude_hemis: false,
+            min_hyperplane_copies: 0,
+            max_hyperplane_copies: 0,
+            max_hyperplane_orbits: 0,
             only_below_vertex: false,
             compounds: false,
+            compound_elements: false,
             mark_fissary: true,
-            uniform: false,
             label_facets: true,
+            uniform: false,
             save: true,
             save_facets: false,
             save_to_file: false,
             file_path: "".to_string(),
+            r: false,
+            exotic: false,
+            exotic_elements: false,
+            do_skew_rank: false,
+            skew_rank: 3
         }
     }
 }
@@ -1641,23 +1709,69 @@ impl MemoryWindow for FacetingSettings {
             );
         });
         if self.show_advanced_settings {
-            ui.horizontal(|ui| {
-                ui.label("Max facetings per hyperplane");
-                ui.add(
-                    egui::DragValue::new(&mut self.max_per_hyperplane)
-                        .speed(200)
-                        .clamp_range(0..=usize::MAX)
-                );
-            });
-        }
+        ui.horizontal(|ui| {
+            ui.label("Max facetings per hyperplane");
+            ui.add(
+                egui::DragValue::new(&mut self.max_per_hyperplane)
+                    .speed(200)
+                    .clamp_range(0..=usize::MAX)
+            );
+        });
+        ui.horizontal(|ui| {
+            ui.label("Min vertices per hyperplane");
+            ui.add(
+                egui::DragValue::new(&mut self.min_vertices_per_hyperplane)
+                    .speed(0.02)
+                    .clamp_range(0..=usize::MAX)
+            );
+            
+            ui.label("Max vertices per hyperplane");
+            ui.add(
+                egui::DragValue::new(&mut self.max_vertices_per_hyperplane)
+                    .speed(0.02)
+                    .clamp_range(0..=usize::MAX)
+            );
+        });
+        ui.horizontal(|ui| {
+            ui.label("Max hyperplane orbits");
+            ui.add(
+                egui::DragValue::new(&mut self.max_hyperplane_orbits)
+                    .speed(0.02)
+                    .clamp_range(0..=usize::MAX)
+            );
+        });
+        ui.horizontal(|ui| {
+            ui.add(
+                egui::Checkbox::new(&mut self.do_kept_vertex_orbit, "")
+            );
+            ui.add(
+                egui::DragValue::new(&mut self.kept_vertex_orbit).clamp_range(0..=usize::MAX).speed(0.02)
+            );
+            ui.label("Kept vertex orbit");
+        });
+        ui.horizontal(|ui| {
+            ui.label("Min hyperplane copies per orbit");
+            ui.add(
+                egui::DragValue::new(&mut self.min_hyperplane_copies)
+                    .speed(0.02)
+                    .clamp_range(0..=usize::MAX)
+            );
+
+            ui.label("Max hyperplane copies per orbit");
+            ui.add(
+                egui::DragValue::new(&mut self.max_hyperplane_copies)
+                    .speed(0.02)
+                    .clamp_range(0..=usize::MAX)
+            );
+        });}
+
         ui.separator();
 
         ui.label("Group:");
 
-        ui.radio_value(&mut self.group, GroupEnum2::Chiral(false), "Full group");
-        ui.radio_value(&mut self.group, GroupEnum2::Chiral(true), "Chiral subgroup");
-
         ui.horizontal(|ui| {
+            ui.radio_value(&mut self.group, GroupEnum2::Chiral(false), "Full group");
+            ui.radio_value(&mut self.group, GroupEnum2::Chiral(true), "Chiral subgroup");
             ui.radio_value(&mut self.group, GroupEnum2::FromSlot(self.slot), "From other polytope:");
                 
             const SELECT: &str = "Select";
@@ -1725,6 +1839,10 @@ impl MemoryWindow for FacetingSettings {
         ui.radio_value(&mut self.any_single_edge_length, true, "Any single edge length");
         ui.radio_value(&mut self.any_single_edge_length, false, "Edge length range");
 
+        ui.add(
+            egui::Checkbox::new(&mut self.exclude_unit_edges, "Exclude unit edges and radius edges (only applies to any single edge length)")
+        );
+        
         ui.horizontal(|ui| {
             ui.add(
                 egui::Checkbox::new(&mut self.do_min_edge_length, "")
@@ -1733,9 +1851,7 @@ impl MemoryWindow for FacetingSettings {
                 egui::DragValue::new(&mut self.min_edge_length).clamp_range(0.0..=Float::MAX).speed(0.01)
             );
             ui.label("Min edge length");
-        });
 
-        ui.horizontal(|ui| {
             ui.add(
                 egui::Checkbox::new(&mut self.do_max_edge_length, "")
             );
@@ -1754,9 +1870,7 @@ impl MemoryWindow for FacetingSettings {
                     egui::DragValue::new(&mut self.min_inradius).clamp_range(0.0..=Float::MAX).speed(0.001)
                 );
                 ui.label("Min inradius");
-            });
-    
-            ui.horizontal(|ui| {
+
                 ui.add(
                     egui::Checkbox::new(&mut self.do_max_inradius, "")
                 );
@@ -1777,45 +1891,74 @@ impl MemoryWindow for FacetingSettings {
 
         ui.separator();
 
-        ui.add(
-            egui::Checkbox::new(&mut self.uniform, "Only uniform/semiuniform facets")
-        );
-
-        if self.show_advanced_settings {
-            ui.separator();
-        
+        ui.horizontal(|ui| {
             ui.add(
                 egui::Checkbox::new(&mut self.compounds, "Include trivial compounds")
             );
     
             ui.add(
-                egui::Checkbox::new(&mut self.mark_fissary, "Mark compounds/fissaries")
+                egui::Checkbox::new(&mut self.compound_elements, "Include trivial compound elements")
             );
+        });
+
+        ui.add(
+            egui::Checkbox::new(&mut self.mark_fissary, "Mark compounds/fissaries")
+        );
+
+        ui.add(
+            egui::Checkbox::new(&mut self.label_facets, "Label facets")
+        );
+
+        ui.add(
+            egui::Checkbox::new(&mut self.uniform, "Only uniform/semiuniform facets")
+        );
+
+        if self.show_advanced_settings {
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::Checkbox::new(&mut self.exotic, "Include exotics")
+                );
     
-            ui.add(
-                egui::Checkbox::new(&mut self.label_facets, "Label facets")
-            );
+                ui.add(
+                    egui::Checkbox::new(&mut self.exotic_elements, "Include exotic elements")
+                );
+            });
+
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::Checkbox::new(&mut self.do_skew_rank, "")
+                );
+                ui.add(
+                    egui::DragValue::new(&mut self.skew_rank).clamp_range(0..=usize::MAX).speed(0.02)
+                );
+                ui.label("Skew rank");
+            });
         }
 
         ui.separator();
 
-        ui.add(
-            egui::Checkbox::new(&mut self.save, "Save facetings")
-        );
-
-        ui.add(
-            egui::Checkbox::new(&mut self.save_facets, "Save facets")
-        );
-
-        ui.radio_value(&mut self.save_to_file, false, "Save to memory");
+        ui.horizontal(|ui| {
+            ui.add(
+                egui::Checkbox::new(&mut self.save, "Save facetings")
+            );
+    
+            ui.add(
+                egui::Checkbox::new(&mut self.save_facets, "Save facets")
+            );
+        });
 
         ui.horizontal(|ui| {
+            ui.radio_value(&mut self.save_to_file, false, "Save to memory");
             ui.radio_value(&mut self.save_to_file, true, "Save to file");
             ui.label("Path:");
             ui.add(
                 egui::TextEdit::singleline(&mut self.file_path).enabled(self.save_to_file)
             );
         });
+        
+        ui.add(
+            egui::Checkbox::new(&mut self.r, "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR")
+        );
 
         ui.separator();
 
@@ -1825,9 +1968,7 @@ impl MemoryWindow for FacetingSettings {
     }
 }
 
-
 /// Rotation window for Transform tab
-#[derive(Default)]
 pub struct RotateWindow {
     /// Whether the window is open.
     open: bool,
@@ -1837,9 +1978,20 @@ pub struct RotateWindow {
 
     /// List of rotations (in radians). Rotates around xy plane, then yz plane, then zw plane, etc.
     rots: Vec<f64>,
-	
-	/// Determines if radians or degrees are used.
-	degcheck: bool,
+
+    /// Determines unit angle = 1/n
+    degcheck: f64,
+}
+
+impl Default for RotateWindow {
+    fn default() -> Self {
+        Self {
+            open: false,
+            rank: Default::default(),
+            rots: Vec::new(),
+            degcheck: 6.283185307179586
+        }
+    }
 }
 
 impl Window for RotateWindow {
@@ -1856,62 +2008,53 @@ impl Window for RotateWindow {
 
 impl UpdateWindow for RotateWindow {
     fn action(&self, polytope: &mut Concrete) {
-		if self.rank > 1 {
-			polytope.element_sort();
-			
-			let mut index = 0;
-			for r in 0..self.rank-1 {
-				for s in (r+1)..=self.rank-1 {
-					for v in polytope.vertices_mut() {
-						
-						let theta: f64;
-						if self.degcheck { //Degrees
-							theta = self.rots[index] * 0.017453292519943295;
-						}
-						else { //Radians
-							theta = self.rots[index];
-						}
-						
-						let x = v[r]*theta.cos() - v[s]*theta.sin();
-						let y = v[r]*theta.sin() + v[s]*theta.cos();
-						v[r] = x;
-						v[s] = y;
-					}
-					index += 1; //Setting next index value
-				}
-			}
-			
-			println!("Object rotated!");
-		}
-        else {
-			println!("Objects with rank less than 2 cannot be rotated.")
-		}
+        if self.rank > 1 {
+            polytope.element_sort();
+            
+            let mut index = 0;
+            for r in 0..self.rank-1 {
+                for s in (r+1)..=self.rank-1 {
+                    for v in polytope.vertices_mut() {
+                        
+                        let theta = self.rots[index]*(6.283185307179586/self.degcheck);
+                        
+                        let x = v[r]*theta.cos() - v[s]*theta.sin();
+                        let y = v[r]*theta.sin() + v[s]*theta.cos();
+                        v[r] = x;
+                        v[s] = y;
+                    }
+                    index += 1; //Setting next index value
+                }
+            }
+
+            println!("Object rotated!");
+        } else {
+            println!("Objects with rank less than 2 cannot be rotated.")
+        }
     }
 
     fn name_action(&self, name: &mut String) {
         *name = format!("Rotated {}", name);
     }
-	
+
     fn build(&mut self, ui: &mut Ui) {
-		let mut index = 0;
-		ui.add(egui::Checkbox::new(&mut self.degcheck, "Use degrees instead of radians"));
-		for r in 0..self.rank-1 {
+        let mut index = 0;
+        ui.horizontal(|ui|{
+            ui.radio_value(&mut self.degcheck, 360.0, "Degrees");
+            ui.radio_value(&mut self.degcheck, 6.283185307179586, "Radians");
+            ui.radio_value(&mut self.degcheck, 1.0, "Turns");
+        });
+        for r in 0..self.rank-1 {
             for s in (r+1)..=self.rank-1 {
-				ui.horizontal(|ui| {
-					if self.degcheck {
-						ui.add(egui::DragValue::new(&mut self.rots[ index ]).speed(1.0).clamp_range::<f64>(0.0..=360.0));
-						ui.label("Axes ".to_owned()+&r.to_string()+" and "+&s.to_string());
-					}
-					else{
-						ui.add(egui::DragValue::new(&mut self.rots[ index ]).speed(0.01).clamp_range::<f64>(0.0..=6.283185307179586));
-						ui.label("Axes ".to_owned()+&r.to_string()+" and "+&s.to_string());
-					}
-					index += 1; //setting index value
-				});
-			}
+                ui.horizontal(|ui| {
+                    ui.add(egui::DragValue::new(&mut self.rots[ index ]).speed(self.degcheck/360.0).clamp_range(0.0..=self.degcheck));
+                    ui.label("Axes ".to_owned()+&r.to_string()+" and "+&s.to_string());
+                    index += 1; //setting index value
+                });
+            }
         }
     }
-	
+
     fn dim(&self) -> usize {
         self.rank
     }
@@ -1931,7 +2074,6 @@ impl UpdateWindow for RotateWindow {
 }
 
 /// Plane rotation window (Rotate with plane... window)
-
 pub struct PlaneWindow {
     /// Whether the window is open.
     open: bool,
@@ -1941,17 +2083,17 @@ pub struct PlaneWindow {
 
     /// Rotation amount (radians).
     rot: f64,
-	
-	/// Coordinates of points.
-	p1: Point,
-	p2: Point,
-	
-	/// Determines if radians or degrees are used.
-	degcheck: bool,
-	
-	//Determines if a custom origin point should be used.
-	origincheck: bool,
-	po: Point,
+    
+    /// Coordinates of points.
+    p1: Point,
+    p2: Point,
+    
+    /// Determines unit angle = 1/n
+    degcheck: f64,
+
+    //Determines if a custom origin point should be used.
+    origincheck: bool,
+    po: Point,
 
 }
 
@@ -1959,17 +2101,13 @@ impl Default for PlaneWindow {
     fn default() -> Self {
         Self {
             open: false,
-			rank: Default::default(),
-			
-			rot: 0.0,
-			
+            rank: Default::default(),
+            rot: 0.0,
             p1: Point::zeros(0),
-			p2: Point::zeros(0),
-			
-            degcheck: false,
-			
-			origincheck: false,
-			po: Point::zeros(0),
+            p2: Point::zeros(0),
+            degcheck: 6.283185307179586,
+            origincheck: false,
+            po: Point::zeros(0),
         }
     }
 }
@@ -1987,101 +2125,93 @@ impl Window for PlaneWindow {
 }
 
 fn dot(u: &Vec<f64>, v: &Vec<f64>) -> f64 {
-	let mut sum = 0.0;
-	for i in 0..u.len() {
-		sum += u[i]*v[i];
-	}
-	return sum
+    let mut sum = 0.0;
+    for i in 0..u.len() {
+        sum += u[i]*v[i];
+    }
+    return sum
 }
 
 impl UpdateWindow for PlaneWindow {
     fn action(&self, polytope: &mut Concrete) {
-		if self.p1 == Point::zeros(self.rank) || self.p2 == Point::zeros(self.rank) {
-			println!("Points within plane cannot be located at the origin.");
-		}
-		else if self.rot == 0.0 {
-			println!("Rotated, but the rotation amount was set to 0 so there was no change.");
-		}
-		else {			
-			//Step 0: Make plane of orthonormal basis based on input
-			//Subtract po from p1 and p2
-			let mut sub1: Vec<f64> = Vec::new();
-			let mut sub2: Vec<f64> = Vec::new();
-			
-			for i in 0..self.rank {
-				sub1.push( self.p1[i]-self.po[i] );
-				sub2.push( self.p2[i]-self.po[i] );
-			}
-			
-			//Make points sub1 and sub2 into unit Vec<f64> objects.
-			let ss1: f64 = sub1.iter().map(|&x| x*x).sum();
-			let ss2: f64 = sub2.iter().map(|&x| x*x).sum();
-			
-			let mut v1: Vec<f64> = Vec::new();
-			let mut v2: Vec<f64> = Vec::new();
-			
-			for i in 0..self.rank {
-				v1.push( (sub1[i])/ss1.sqrt() );
-				v2.push( (sub2[i]-self.po[i])/ss2.sqrt() );
-			}
-			
-			//Implement Gram-Schmidt process to make vectors orthonormal
-			let prod = dot(&v1,&v2);
-			
-			let mut u2: Vec<f64> = Vec::new();
-			for i in 0..self.rank {
-				u2.push(v2[i] - v1[i] * prod);
-			}
-			let ss3: f64 = u2.iter().map(|&x| x*x).sum();
-			
-			for i in 0..self.rank {
-				v2[i] = u2[i]/ss3.sqrt();
-			}
-			
-			let theta: f64;
-			if self.degcheck { //theta is the rotation amount in radians, which may or may not need conversion
-				theta = self.rot * 0.017453292519943295;
-			}
-			else {
-				theta = self.rot;
-			}
-			
-			for v in polytope.vertices_mut() {
-				
-				//Step 1: Find perpendicular intersection of point and plane, in orthonormal basis
-				//Equivalent to solving for the vector Q where (v-Q)·v1 = (v-Q)·v2 = 0, and Q is in the v1v2 plane.
-				//From this we find Q in the v1v2 basis. It turns out to equal [v·v1/v1·v1,v·v2/v2·v2].
-				//Because x·x = 1 for unit vectors x, we can simplify this to [v·v1,v·v2].
-				let mut vvec = Vec::new();
-				for i in 0..self.rank {
-					vvec.push( v[i] );
-				}
-				let vf = vec![ dot(&vvec,&v1) , dot(&vvec,&v2) ];
-				
-				//Step 2: Rotate point around plane in basis
-				let mut vr = Point::zeros(2);
-				vr[0] = vf[0]*theta.cos() - vf[1]*theta.sin();
-				vr[1] = vf[0]*theta.sin() + vf[1]*theta.cos();
-				
-				//Step 3: Determine non-basis coordinates of rotated point and intersection point
-				let mut vc = Point::zeros(self.rank); //Intersection point
-				let mut vrc = Point::zeros(self.rank); //Rotated point
-				for i in 0..self.rank {
-					vrc[i] = vr[0]*v1[i]+vr[1]*v2[i];
-					vc[i] = vf[0]*v1[i]+vf[1]*v2[i];
-				}
-				
-				//Step 4: Reverse vector transformation between original point and intersection point onto rotated point. This is our new point.
-				//new v = vrc + v - vc
-				for i in 0..self.rank {
-					v[i] = vrc[i] + v[i] - vc[i];
-				}
-			}
-			
-			println!("Rotated!");
-		
-		}
-	
+        if self.p1 == Point::zeros(self.rank) || self.p2 == Point::zeros(self.rank) {
+            println!("Points within plane cannot be located at the origin.");
+        } else if self.rot == 0.0 {
+            println!("Rotated, but the rotation amount was set to 0 so there was no change.");
+        } else {
+            //Step 0: Make plane of orthonormal basis based on input
+            //Subtract po from p1 and p2
+            let mut sub1: Vec<f64> = Vec::new();
+            let mut sub2: Vec<f64> = Vec::new();
+            
+            for i in 0..self.rank {
+                sub1.push( self.p1[i]-self.po[i] );
+                sub2.push( self.p2[i]-self.po[i] );
+            }
+            
+            //Make points sub1 and sub2 into unit Vec<f64> objects.
+            let ss1: f64 = sub1.iter().map(|&x| x*x).sum();
+            let ss2: f64 = sub2.iter().map(|&x| x*x).sum();
+            
+            let mut v1: Vec<f64> = Vec::new();
+            let mut v2: Vec<f64> = Vec::new();
+            
+            for i in 0..self.rank {
+                v1.push( (sub1[i])/ss1.sqrt() );
+                v2.push( (sub2[i]-self.po[i])/ss2.sqrt() );
+            }
+            
+            //Implement Gram-Schmidt process to make vectors orthonormal
+            let prod = dot(&v1,&v2);
+            
+            let mut u2: Vec<f64> = Vec::new();
+            for i in 0..self.rank {
+                u2.push(v2[i] - v1[i] * prod);
+            }
+            let ss3: f64 = u2.iter().map(|&x| x*x).sum();
+            
+            for i in 0..self.rank {
+                v2[i] = u2[i]/ss3.sqrt();
+            }
+
+            let theta = self.rot * (6.283185307179586/self.degcheck); //theta is the rotation amount in radians, which may or may not need conversion
+            
+            for v in polytope.vertices_mut() {
+
+                //Step 1: Find perpendicular intersection of point and plane, in orthonormal basis
+                //Equivalent to solving for the vector Q where (v-Q)·v1 = (v-Q)·v2 = 0, and Q is in the v1v2 plane.
+                //From this we find Q in the v1v2 basis. It turns out to equal [v·v1/v1·v1,v·v2/v2·v2].
+                //Because x·x = 1 for unit vectors x, we can simplify this to [v·v1,v·v2].
+                let mut vvec = Vec::new();
+                for i in 0..self.rank {
+                    vvec.push( v[i] );
+                }
+                let vf = vec![ dot(&vvec,&v1) , dot(&vvec,&v2) ];
+                
+                //Step 2: Rotate point around plane in basis
+                let mut vr = Point::zeros(2);
+                vr[0] = vf[0]*theta.cos() - vf[1]*theta.sin();
+                vr[1] = vf[0]*theta.sin() + vf[1]*theta.cos();
+                
+                //Step 3: Determine non-basis coordinates of rotated point and intersection point
+                let mut vc = Point::zeros(self.rank); //Intersection point
+                let mut vrc = Point::zeros(self.rank); //Rotated point
+                for i in 0..self.rank {
+                    vrc[i] = vr[0]*v1[i]+vr[1]*v2[i];
+                    vc[i] = vf[0]*v1[i]+vf[1]*v2[i];
+                }
+                
+                //Step 4: Reverse vector transformation between original point and intersection point onto rotated point. This is our new point.
+                //new v = vrc + v - vc
+                for i in 0..self.rank {
+                    v[i] = vrc[i] + v[i] - vc[i];
+                }
+            }
+            
+            println!("Rotated!");
+        
+        }
+    
     }
 
     fn name_action(&self, name: &mut String) {
@@ -2089,33 +2219,29 @@ impl UpdateWindow for PlaneWindow {
     }
 
     fn build(&mut self, ui: &mut Ui) {
-        ui.add(egui::Checkbox::new(&mut self.degcheck, "Use degrees instead of radians"));
-		
-		ui.horizontal(|ui| {
-			
-			if self.degcheck {
-			   ui.add(egui::DragValue::new(&mut self.rot).speed(1.0).clamp_range::<f64>(0.0..=360.0));
-			}
-			else{
-				ui.add(egui::DragValue::new(&mut self.rot).speed(0.01).clamp_range::<f64>(0.0..=6.283185307179586));
-			}
-			
-			ui.label("Rotation"); 
+        ui.horizontal(|ui|{
+            ui.radio_value(&mut self.degcheck, 360.0, "Degrees");
+            ui.radio_value(&mut self.degcheck, 6.283185307179586, "Radians");
+            ui.radio_value(&mut self.degcheck, 1.0, "Turns");
         });
-		
-		
-		ui.separator();
-		
-		ui.add(egui::Checkbox::new(&mut self.origincheck, "Use a third origin point"));
-		
-		ui.add(PointWidget::new(&mut self.p1, "First point"));
-		ui.add(PointWidget::new(&mut self.p2, "Second point"));
-		if self.origincheck {
-			ui.add(PointWidget::new(&mut self.po, "Origin point"));
-		}
-		
+        
+        ui.horizontal(|ui| {
+            ui.add(egui::DragValue::new(&mut self.rot).speed(self.degcheck/360.0).clamp_range::<f64>(0.0..=self.degcheck));
+            ui.label("Rotation"); 
+        });
+        
+        ui.separator();
+        
+        ui.add(egui::Checkbox::new(&mut self.origincheck, "Use a third origin point"));
+        
+        ui.add(PointWidget::new(&mut self.p1, "First point"));
+        ui.add(PointWidget::new(&mut self.p2, "Second point"));
+        if self.origincheck {
+            ui.add(PointWidget::new(&mut self.po, "Origin point"));
+        }
+        
     }
-	
+
     fn dim(&self) -> usize {
         self.rank
     }
@@ -2123,10 +2249,10 @@ impl UpdateWindow for PlaneWindow {
     fn default_with(dim: usize) -> Self {
         Self {
             rank: dim,
-			rot: 0.0,
+            rot: 0.0,
             p1: Point::zeros(dim),
-			p2: Point::zeros(dim),
-			po: Point::zeros(dim),
+            p2: Point::zeros(dim),
+            po: Point::zeros(dim),
             ..Default::default()
         }
     }
@@ -2134,7 +2260,362 @@ impl UpdateWindow for PlaneWindow {
     fn update(&mut self, dim: usize) {
         self.rank = dim;
         self.p1 = Point::zeros(dim);
-		self.p2 = Point::zeros(dim);
-		self.po = Point::zeros(dim);
+        self.p2 = Point::zeros(dim);
+        self.po = Point::zeros(dim);
+    }
+}
+
+/// Whether the hotkey to enable "advanced" options is enabled.
+fn advanced(keyboard: &Input<KeyCode>) -> bool {
+    keyboard.pressed(KeyCode::F2)
+}
+
+/// A window that allows the user to build a dual with a specified hypersphere.
+pub struct WikiWindow {
+    /// Whether the window is open.
+    open: bool,
+
+    /// The wiki article.
+    article: WikiArticle,
+}
+
+impl Default for WikiWindow {
+    fn default() -> Self {
+        Self {
+            open: false,
+            article: WikiArticle::default(),
+        }
+    }
+}
+
+impl Window for WikiWindow {
+    const NAME: &'static str = "Generate wiki article";
+
+    fn is_open(&self) -> bool {
+        self.open
+    }
+
+    fn is_open_mut(&mut self) -> &mut bool {
+        &mut self.open
+    }
+}
+
+impl WikiWindow {
+    /// The action done when pressing Ok.
+    fn action(&self) {
+        let mut page = String::new();
+
+        page += "{{Infobox polytope";
+
+        for field in &self.article.infobox.before_elements {
+            page += &format!("\n|{} = {}", field.name, field.value);
+        }
+
+        for (r, types) in self.article.infobox.elements.iter().enumerate().rev() {
+            if r == 0 {break;}
+
+            page += &format!("\n|{} = ", EL_NAMES[r].to_string().to_lowercase());
+
+            for (idx, t) in types.iter().enumerate() {
+                page += &format!(
+                    "{}{} {}{}{}",
+                    if idx > 0 {" <br> "} else {""},
+                    t.count.to_string(),
+                    match t.link_type {
+                        LinkType::Link => "[[",
+                        LinkType::PTemp => "{{p|",
+                        LinkType::Custom => "",
+                    },
+                    t.name,
+                    match t.link_type {
+                        LinkType::Link => "]]",
+                        LinkType::PTemp => "}}",
+                        LinkType::Custom => "",
+                    },
+                );
+            }
+        }
+
+        for field in &self.article.infobox.after_elements {
+            page += &format!("\n|{} = {}", field.name, field.value);
+        }
+
+        page += "\n}}\n";
+
+        page += &self.article.body;
+
+        page += "\n";
+        for category in &self.article.categories {
+            page += &format!("\n[[Category:{}]]", category);
+        }
+
+        println!("{}", page);
+    }
+
+    /// Builds the window to be shown on screen.
+    fn build(
+        &mut self,
+        ui: &mut Ui,
+        keyboard: Res<'_, Input<KeyCode>>,
+    ) {
+        ui.horizontal(|ui| {
+            ui.label("Title:");
+            ui.add(
+                egui::TextEdit::singleline(&mut self.article.title)
+            );
+        });
+
+        ui.separator();
+
+        let infobox = &mut self.article.infobox;
+
+        ui.label("{{Infobox polytope");
+
+        for idx in 0..infobox.before_elements.len() {
+            ui.horizontal(|ui| {
+                if advanced(&keyboard) {
+                    if ui.button("+").clicked() {
+                        infobox.before_elements.insert(idx, InfoboxField::default());
+                    } 
+                    if ui.button("-").clicked() {
+                        infobox.before_elements.remove(idx);
+                    }
+                    if ui.add(Button::new("^").enabled(idx > 0)).clicked() {
+                        infobox.before_elements.swap(idx-1, idx);
+                    }
+                    if ui.add(Button::new("v").enabled(idx+1 < infobox.before_elements.len())).clicked() {
+                        infobox.before_elements.swap(idx, idx+1);
+                    }
+                }
+                if idx < infobox.before_elements.len() {
+                    let field = &mut infobox.before_elements[idx];
+                    ui.label("|");
+                    ui.add(TextEdit::singleline(&mut field.name).desired_width(60.));
+                    ui.label("=");
+                    ui.add(TextEdit::singleline(&mut field.value));
+                }
+            });
+        }
+        if advanced(&keyboard) {
+            if ui.button("+").clicked() {
+                infobox.before_elements.push(InfoboxField::default());
+            } 
+        }
+
+        for (r, types) in infobox.elements.iter_mut().enumerate().rev() {
+            if r == 0 {break;}
+
+            ui.label(format!("|  {} =", EL_NAMES[r].to_string().to_lowercase()));
+
+            for t in types {
+                ui.horizontal(|ui| {
+                    ui.label("     ");
+                    ui.label(&t.count.to_string());
+                    match &t.link_type {
+                        LinkType::Link => {ui.label("[[");},
+                        LinkType::PTemp => {ui.label("{{p|");},
+                        LinkType::Custom => (),
+                    }
+                    ui.add(TextEdit::singleline(&mut t.name).desired_width(150.));
+                    match &t.link_type {
+                        LinkType::Link => {
+                            ui.label("]]");
+                            if advanced(&keyboard) {
+                                if ui.button("Link").clicked() {
+                                    t.link_type = LinkType::PTemp;
+                                }
+                            }
+                        },
+                        LinkType::PTemp => {
+                            ui.label("}}");
+                            if advanced(&keyboard) {
+                                if ui.button("PTemp").clicked() {
+                                    t.link_type = LinkType::Custom;
+                                }
+                            }
+                        },
+                        LinkType::Custom => {
+                            if advanced(&keyboard) {
+                                if ui.button("Custom").clicked() {
+                                    t.link_type = LinkType::Link;
+                                }
+                            }
+                        },
+                    }
+                });
+            }
+        }
+
+        for idx in 0..infobox.after_elements.len() {
+            ui.horizontal(|ui| {
+                if advanced(&keyboard) {
+                    if ui.button("+").clicked() {
+                        infobox.after_elements.insert(idx, InfoboxField::default());
+                    } 
+                    if ui.button("-").clicked() {
+                        infobox.after_elements.remove(idx);
+                    }
+                    if ui.add(Button::new("^").enabled(idx > 0)).clicked() {
+                        infobox.after_elements.swap(idx-1, idx);
+                    }
+                    if ui.add(Button::new("v").enabled(idx+1 < infobox.after_elements.len())).clicked() {
+                        infobox.after_elements.swap(idx, idx+1);
+                    }
+                }
+                if idx < infobox.after_elements.len() {
+                    let field = &mut infobox.after_elements[idx];
+                    ui.label("|");
+                    ui.add(TextEdit::singleline(&mut field.name).desired_width(60.));
+                    ui.label("=");
+                    ui.add(TextEdit::singleline(&mut field.value));
+                }
+            });
+        }
+        if advanced(&keyboard) {
+            if ui.button("+").clicked() {
+                infobox.after_elements.push(InfoboxField::default());
+            } 
+        }
+
+        ui.label("}}");
+
+        ui.text_edit_multiline(&mut self.article.body);
+
+        let categories = &mut self.article.categories;
+
+        ui.label("Categories:");
+        for idx in 0..categories.len() {
+            ui.horizontal(|ui| {
+                if advanced(&keyboard) {
+                    if ui.button("+").clicked() {
+                        categories.insert(idx, "".to_string());
+                    } 
+                    if ui.button("-").clicked() {
+                        categories.remove(idx);
+                    }
+                    if ui.add(Button::new("^").enabled(idx > 0)).clicked() {
+                        categories.swap(idx-1, idx);
+                    }
+                    if ui.add(Button::new("v").enabled(idx+1 < categories.len())).clicked() {
+                        categories.swap(idx, idx+1);
+                    }
+                }
+                ui.add(TextEdit::singleline(&mut categories[idx]).desired_width(300.));
+            });
+        }
+        if advanced(&keyboard) {
+            if ui.button("+").clicked() {
+                categories.push("".to_string());
+            } 
+        }
+    }
+
+    /// Resets the window, generates much of it from the element types.
+    fn reset(&mut self, element_types: &Res<'_, ElementTypesRes>) {
+        *self = Self {
+            open: true,
+            article: WikiArticle {
+                title: element_types.poly_name.clone(),
+                infobox: Infobox {
+                    before_elements: vec![
+                        InfoboxField::new("rank", &(element_types.poly.rank()-1).to_string()),
+                        InfoboxField::new("type", ""),
+                        InfoboxField::new("bsa", ""),
+                    ],
+
+                    elements: element_types.types.iter().enumerate().map(|(rank, list)| {
+                        list.iter().map(|el_type| WikiElement{
+                            count: el_type.count,
+                            link_type: if rank < 4 {LinkType::Custom} else {LinkType::Link},
+                            ..Default::default()
+                        }).collect()
+                    }).collect(),
+
+                    after_elements: {
+                        let mut vec = vec![
+                            InfoboxField::new("verf", ""),
+                            InfoboxField::new("army", ""),
+                            InfoboxField::new("reg", ""),
+                            InfoboxField::new("symmetry", &("[[]], order ".to_owned() + &element_types.poly.clone().get_symmetry_group().unwrap().0.count().to_string())),
+                            InfoboxField::new("flags", &element_types.poly.flags().count().to_string()),
+                        ];
+                        if let Some(sphere) = element_types.poly.circumsphere() {
+                            vec.push(InfoboxField::new("circum", &format!("<math>\\approx {}</math>", n_decimals(sphere.radius(), 5))));
+                        }
+                        if let Some(volume) = element_types.poly.volume() {
+                            vec.push(InfoboxField::new("volume", &format!("<math>\\approx {}</math>", n_decimals(volume, 5))));
+                        }
+                        vec.push(InfoboxField::new("convex", ""));
+                        vec.push(InfoboxField::new("orient", if element_types.poly.orientable() {"Yes"} else {"No"}));
+                        vec.push(InfoboxField::new("nature", ""));
+                        vec
+                    }
+                },
+                body: Default::default(),
+                categories: Default::default(),
+            }
+        }
+    }
+
+    /// Shows the window on screen.
+    fn show(
+        &mut self,
+        ctx: &CtxRef,
+        keyboard: Res<'_, Input<KeyCode>>
+    ) -> ShowResult
+    {
+        let mut open = self.is_open();
+        let mut result = ShowResult::None;
+
+        egui::Window::new(Self::NAME)
+            .open(&mut open)
+            .resizable(false)
+            .show(ctx, |ui| {
+                self.build(ui, keyboard);
+                ui.add(OkReset::new(&mut result));
+            });
+
+        if open {
+            self.open();
+            result
+        } else {
+            ShowResult::Close
+        }
+    }
+
+    /// The system that shows the window.
+    fn show_system(
+        mut self_: ResMut<'_, Self>,
+        egui_ctx: Res<'_, EguiContext>,
+        element_types: Res<'_, ElementTypesRes>,
+        keyboard: Res<'_, Input<KeyCode>>
+    ) where
+        Self: 'static,
+    {
+        match self_.show(egui_ctx.ctx(), keyboard) {
+            ShowResult::Ok => {
+                self_.action();
+                self_.close()
+            }
+            ShowResult::Close => self_.close(),
+            ShowResult::Reset => self_.reset(&element_types),
+            ShowResult::None => {}
+        }
+    }
+
+    /// A plugin that adds a resource of type `Self` and the system to show it.
+    fn plugin() -> WikiWindowPlugin {
+        Default::default()
+    }
+}
+
+/// A plugin that adds all of the necessary systems for a [`WikiWindow`].
+#[derive(Default)]
+pub struct WikiWindowPlugin(PhantomData<WikiWindow>);
+
+impl Plugin for WikiWindowPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<WikiWindow>()
+            .add_system(WikiWindow::show_system.system().label("show_windows"));
     }
 }

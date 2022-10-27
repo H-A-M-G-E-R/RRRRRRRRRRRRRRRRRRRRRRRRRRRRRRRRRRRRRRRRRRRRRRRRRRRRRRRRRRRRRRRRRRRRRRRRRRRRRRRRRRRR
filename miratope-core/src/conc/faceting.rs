@@ -162,6 +162,9 @@ fn label_irc(vec: &Vec<Vec<(usize,usize)>>) -> HashMap<usize, (usize,usize)> {
 
     'a: for a in 0..vec.len() { // `a` is the index of the base set
         for b in 0..vec.len() { // `b` is the index of a potential subset of `a`
+            if a == b {
+                continue
+            }
             if vec[b].len() >= vec[a].len() { // A strict subset must be smaller than the base.
                 continue
             }
@@ -217,7 +220,7 @@ fn filter_irc(vec: &Vec<Vec<(usize,usize)>>) -> Vec<usize> {
             if a == b {
                 continue
             }
-            if vec[b].len() > vec[a].len() { // A strict subset must be smaller than the base.
+            if vec[b].len() >= vec[a].len() { // A strict subset must be smaller than the base.
                 continue
             }
             if vec[b][0] > vec[a][0] { // One of the subsets must contain the first facet.
@@ -250,9 +253,11 @@ fn faceting_subdim(
     min_edge_length: Option<f64>,
     max_edge_length: Option<f64>,
     max_per_hyperplane: Option<usize>,
-	uniform: bool,
+    include_compounds: bool,
+    exotic: bool,
+    uniform: bool,
     noble_package: Option<(&Vec<Vec<usize>>, &Vec<usize>, usize)>,
-	print_faceting_count: bool
+    print_faceting_count: bool
 ) ->
     (Vec<(Ranks, Vec<(usize, usize)>)>, // Vec of facetings, along with the facet types of each of them
     Vec<usize>, // Counts of each hyperplane orbit
@@ -382,146 +387,162 @@ fn faceting_subdim(
         }
     }
 
+    // Enumerate subspaces between lines and hyperplanes
+
+    let mut tuple_orbits: Vec<Vec<usize>> = pair_orbits.iter().map(|orbit| orbit[0].clone()).collect();
+    for number in 3..rank-1 {
+        let mut checked = HashSet::new();
+        let mut new_tuple_orbits = Vec::new();
+
+        for tuple in tuple_orbits {
+            'a: for new_vertex in tuple[tuple.len()-1]..points.len() {
+                if now.elapsed().as_millis() > DELAY {
+                    print!("{}{} {}-plane orbits, verts {:?}", CL, new_tuple_orbits.len(), number-1, tuple);
+                    std::io::stdout().flush().unwrap();
+                    now = Instant::now();
+                }
+
+                let edge_length = (&points[tuple[0]].0-&points[new_vertex].0).norm();
+                if let Some(min) = min_edge_length {
+                    if edge_length < min - f64::EPS {
+                        continue;
+                    }
+                }
+                if let Some(max) = max_edge_length {
+                    if edge_length > max + f64::EPS {
+                        continue;
+                    }
+                }
+
+                let mut new_tuple = tuple.clone();
+                new_tuple.push(new_vertex);
+
+                for row in &vertex_map {
+                    let mut moved: Vec<usize> = new_tuple.iter().map(|x| row[*x]).collect();
+                    moved.sort_unstable();
+
+                    if checked.contains(&moved) {
+                        continue 'a;
+                    }
+                }
+
+                new_tuple.sort_unstable();
+
+                if Subspace::from_points(new_tuple.iter().map(|x| &points[*x].0)).rank() == number-1 {
+                    new_tuple_orbits.push(new_tuple.clone());
+                }
+
+                checked.insert(new_tuple);
+            }
+        }
+        print!("{}{} {}-plane orbit{}", CL, new_tuple_orbits.len(), number-1, if new_tuple_orbits.len() == 1 {""} else {"s"});
+        tuple_orbits = new_tuple_orbits.iter().map(|x| x.clone()).collect();
+    }
+    
     // Enumerate hyperplanes
     let mut hyperplane_orbits = Vec::new();
     let mut checked = HashSet::<Vec<usize>>::new();
-    let mut hyperplanes_vertices = Vec::new();
 
     let mut noble_map = HashMap::<Vec<usize>, usize>::new();
     let mut noble_counts = Vec::<usize>::new();
     let mut noble_muls = Vec::<usize>::new();
 
-    for pair_orbit in pair_orbits {
-        let rep = &pair_orbit[0];
+    for (idx, rep) in tuple_orbits.iter().enumerate() {
+        for new_vertex in rep[rep.len()-1] + if rank == 3 {0} else {1}..points.len() {
+            // We start with a pair and add enough vertices to define a hyperplane.
+            let mut tuple = rep.clone();
+            tuple.push(new_vertex);
 
-        if rep[1]+rank-2 > points.len() {
-            continue;
-        }
-        let mut new_vertices: Vec<usize> = (rep[1]+1..rep[1]+rank-2).collect();
-        let mut update = 0;
-        if rank > 3 {
-            update = rank-4;
-        }
-        'b: loop {
-            'c: loop {
-                // WLOG checks if the vertices are all the right distance away from the first vertex.
-                for (v_i, v) in new_vertices.iter().enumerate() {
-                    let edge_length = (&points[*v].0-&points[rep[0]].0).norm();
-                    if let Some(min) = min_edge_length {
-                        if edge_length < min - f64::EPS {
-                            update = v_i;
-                            break 'c;
-                        }
-                    }
-                    if let Some(max) = max_edge_length {
-                        if edge_length > max + f64::EPS {
-                            update = v_i;
-                            break 'c;
-                        }
+            if now.elapsed().as_millis() > DELAY && print_faceting_count {
+                print!("{}", CL);
+                print!("{}{} hyperplane orbits, tuple orbit {}/{}, verts {:?}", CL, hyperplane_orbits.len(), idx, tuple_orbits.len(), tuple);
+                std::io::stdout().flush().unwrap();
+                now = Instant::now();
+            }
+
+            let edge_length = (&points[new_vertex].0-&points[rep[0]].0).norm();
+            if let Some(min) = min_edge_length {
+                if edge_length < min - f64::EPS {
+                    continue;
+                }
+            }
+            if let Some(max) = max_edge_length {
+                if edge_length > max + f64::EPS {
+                    continue;
+                }
+            }
+
+            let mut first_points = Vec::new();
+            for v in tuple {
+                first_points.push(&flat_points[v].0);
+            }
+
+            let hyperplane = Subspace::from_points(first_points.clone().into_iter());
+            if hyperplane.is_hyperplane() {
+
+                let mut hyperplane_vertices = Vec::new();
+                for (idx, v) in flat_points.iter().enumerate() {
+                    if hyperplane.distance(&v.0) < f64::EPS {
+                        hyperplane_vertices.push(idx);
                     }
                 }
-                // We start with a pair and add enough vertices to define a hyperplane.
-                let mut tuple = rep.clone();
-                tuple.append(&mut new_vertices.clone());
+                hyperplane_vertices.sort_unstable();
 
-                let mut first_points = Vec::new();
-                for v in tuple {
-                    first_points.push(&flat_points[v].0);
-                }
-
-                let hyperplane = Subspace::from_points(first_points.clone().into_iter());
-                if hyperplane.is_hyperplane() {
-
-                    let mut hyperplane_vertices = Vec::new();
-                    for (idx, v) in flat_points.iter().enumerate() {
-                        if hyperplane.distance(&v.0) < f64::EPS {
-                            hyperplane_vertices.push(idx);
-                        }
+                // Check if the hyperplane has been found already.
+                let mut is_new = true;
+                let mut counting = HashSet::<Vec<usize>>::new();
+                for row in &vertex_map {
+                    let mut new_hp_v = Vec::new();
+                    for idx in &hyperplane_vertices {
+                        new_hp_v.push(row[*idx]);
                     }
-                    hyperplane_vertices.sort_unstable();
 
-                    // Check if the hyperplane has been found already.
-                    if !checked.contains(&hyperplane_vertices) {
-                        // If it's new, we add all the ones in its orbit.
-                        let mut new_orbit = Vec::new();
-                        let mut new_orbit_vertices = Vec::new();
-                        for row in &vertex_map {
-                            let mut new_hp_v = Vec::new();
-                            for idx in &hyperplane_vertices {
-                                new_hp_v.push(row[*idx]);
-                            }
-                            let new_hp_points = new_hp_v.iter().map(|x| &flat_points[*x].0);
-                            let new_hp = Subspace::from_points(new_hp_points);
+                    new_hp_v.sort_unstable();
 
-                            let mut sorted = new_hp_v.clone();
-                            sorted.sort_unstable();
+                    if checked.contains(&new_hp_v) {
+                        is_new = false;
+                        break
+                    }
+                    
+                    counting.insert(new_hp_v);
+                }
+                if is_new {
+                    if let Some((full_vertex_map, global_v, count)) = noble_package {
+                        let mut set = HashSet::new();
 
-                            if !checked.contains(&sorted) {
-                                checked.insert(sorted);
-                                new_orbit.push(new_hp);
-                                new_orbit_vertices.push(new_hp_v);
-                            }
+                        let mut global_hp_v = Vec::new();
+                        for idx in &hyperplane_vertices {
+                            global_hp_v.push(global_v[*idx]);
                         }
-
-                        if let Some((full_vertex_map, global_v, count)) = noble_package {
-                            let mut set = HashSet::new();
-
-                            let mut global_hp_v = Vec::new();
-                            for idx in &hyperplane_vertices {
-                                global_hp_v.push(global_v[*idx]);
-                            }
-                            global_hp_v.sort_unstable();
-                            
-                            match noble_map.get(&global_hp_v) {
-                                Some(idx) => {
-                                    let mul = count * new_orbit.len() / noble_counts[*idx];
-                                    noble_muls[*idx] += mul;
-                                },
-                                None => {
-                                    for row in full_vertex_map {
-                                        let mut new_hp_v = Vec::new();
-                                        for idx in &hyperplane_vertices {
-                                            new_hp_v.push(row[global_v[*idx]]);
-                                        }
-                                        
-                                        let mut sorted = new_hp_v.clone();
-                                        sorted.sort_unstable();
-        
-                                        set.insert(sorted.clone());
-                                        noble_map.insert(sorted, noble_counts.len());
+                        global_hp_v.sort_unstable();
+                        
+                        match noble_map.get(&global_hp_v) {
+                            Some(idx) => {
+                                let mul = count * counting.len() / noble_counts[*idx];
+                                noble_muls[*idx] += mul;
+                            },
+                            None => {
+                                for row in full_vertex_map {
+                                    let mut new_hp_v = Vec::new();
+                                    for idx in &hyperplane_vertices {
+                                        new_hp_v.push(row[global_v[*idx]]);
                                     }
-        
-                                    let mul = count * new_orbit.len() / set.len();
-                                    noble_counts.push(set.len());
-                                    noble_muls.push(mul);
-                                },
-                            }
+                                    
+                                    let mut sorted = new_hp_v.clone();
+                                    sorted.sort_unstable();
+    
+                                    set.insert(sorted.clone());
+                                    noble_map.insert(sorted, noble_counts.len());
+                                }
+    
+                                let mul = count * counting.len() / set.len();
+                                noble_counts.push(set.len());
+                                noble_muls.push(mul);
+                            },
                         }
-
-                        hyperplane_orbits.push(new_orbit);
-                        hyperplanes_vertices.push(new_orbit_vertices);
                     }
-                }
-                break;
-            }
-            if rank <= 3 {
-                break;
-            }
-            loop { // Increment new_vertices.
-                if new_vertices[update] == total_vert_count + update - rank + 3 {
-                    if update < 1 {
-                        break 'b;
-                    }
-                    else {
-                        update -= 1;
-                    }
-                } else {
-                    new_vertices[update] += 1;
-                    for i in update+1..rank-3 {
-                        new_vertices[i] = new_vertices[i-1]+1;
-                    }
-                    update = rank-4;
-                    break;
+                    checked.insert(hyperplane_vertices.clone());
+                    hyperplane_orbits.push((hyperplane, hyperplane_vertices, counting.len()));
                 }
             }
         }
@@ -529,19 +550,16 @@ fn faceting_subdim(
     // Filter the invalid hyperplanes if noble faceting.
     if let Some((_, global_v, _)) = noble_package {
         let mut new_hyperplane_orbits = Vec::new();
-        let mut new_hyperplanes_vertices = Vec::new();
 
-        for (idx, orbit) in hyperplanes_vertices.iter().enumerate() {
-            let mut global_hp_v: Vec<usize> = orbit[0].clone().iter().map(|x| global_v[*x]).collect();
+        for orbit in hyperplane_orbits {
+            let mut global_hp_v: Vec<usize> = orbit.1.clone().iter().map(|x| global_v[*x]).collect();
             global_hp_v.sort_unstable();
             if noble_muls[*noble_map.get(&global_hp_v).unwrap()] >= 2 {
-                new_hyperplane_orbits.push(hyperplane_orbits[idx].clone());
-                new_hyperplanes_vertices.push(orbit.clone());
+                new_hyperplane_orbits.push(orbit.clone());
             }
         }
 
         hyperplane_orbits = new_hyperplane_orbits;
-        hyperplanes_vertices = new_hyperplanes_vertices;
     }
 
     // Facet the hyperplanes
@@ -551,8 +569,8 @@ fn faceting_subdim(
     let mut ridges: Vec<Vec<Vec<Ranks>>> = Vec::new();
     let mut ff_counts = Vec::new();
 
-    for (i, orbit) in hyperplane_orbits.iter().enumerate() {
-        let (hp, hp_v) = (orbit[0].clone(), hyperplanes_vertices[i][0].clone());
+    for orbit in &hyperplane_orbits {
+        let (hp, hp_v) = (orbit.0.clone(), orbit.1.clone());
         let mut stabilizer = Vec::new();
         for row in &vertex_map {
             let mut slice = Vec::new();
@@ -587,7 +605,7 @@ fn faceting_subdim(
         }
 
         let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), min_edge_length, max_edge_length, max_per_hyperplane, uniform, None, false);
+            faceting_subdim(rank-1, hp, points, new_stabilizer.clone(), min_edge_length, max_edge_length, max_per_hyperplane, include_compounds, exotic, uniform, None, false);
 
         let mut possible_facets_global_row = Vec::new();
         for f in &possible_facets_row {
@@ -617,14 +635,13 @@ fn faceting_subdim(
     let mut ridge_counts = Vec::new(); // Counts the number of ridges in each orbit
     let mut orbit_idx = 0;
 
-    let mut hp_i = 0; // idk why i have to do this, thanks rust
-    for ridges_row in ridges {
+    for (hp_i, ridges_row) in ridges.iter_mut().enumerate() {
         let mut r_i_o_row = Vec::new();
 
         for ridges_row_row in ridges_row {
             let mut r_i_o_row_row = Vec::new();
 
-            for mut ridge in ridges_row_row {
+            for ridge in ridges_row_row {
                 // goes through all the ridges
 
                 // globalize
@@ -632,7 +649,7 @@ fn faceting_subdim(
                 for i in 0..ridge[2].len() {
                     let mut new = Element::new(Subelements::new(), Superelements::new());
                     for sub in &ridge[2][i].subs {
-                        new.subs.push(hyperplanes_vertices[hp_i][0][*sub])
+                        new.subs.push(hyperplane_orbits[hp_i].1[*sub])
                     }
                     new_list.push(new);
                 }
@@ -640,15 +657,46 @@ fn faceting_subdim(
 
                 ridge.element_sort_strong();
 
-                match ridge_orbits.get(&ridge) {
-                    Some(idx) => {
-                        // writes the orbit index at the ridge index
-                        r_i_o_row_row.push(*idx);
+                /*
+                // look for possible disentanglement
+                let mut disentangled = None;
+
+                let mut ridge_vertices_idx = HashSet::new();
+                
+                for edge in &ridge[2] {
+                    for sub in &edge.subs {
+                        ridge_vertices_idx.insert(*sub);
                     }
-                    None => {
-                        // adds all ridges with the same orbit to the map
-                        let mut count = 0;
-                        for row in &vertex_map {
+                }
+
+                let mut ridge_vertices = Vec::new();
+
+                for idx in &ridge_vertices_idx {
+                    ridge_vertices.push(points[*idx].0.clone());
+                }
+
+                let subspace = Subspace::from_points(ridge_vertices.iter());
+                let mut all_vertices_idx = HashSet::new();
+
+                for (i, vertex) in points.iter().enumerate() {
+                    if subspace.distance(&vertex.0) < f64::EPS {
+                        all_vertices_idx.insert(i);
+                    }
+                }
+
+                if all_vertices_idx.len() > ridge_vertices_idx.len() {
+                    'vmap: for row in vertex_map.iter().skip(1) {
+                        let mut different = false;
+                        for vertex in &ridge_vertices_idx {
+                            if !all_vertices_idx.contains(&row[*vertex]) {
+                                continue 'vmap;
+                            }
+                            if !ridge_vertices_idx.contains(&row[*vertex]) {
+                                different = true;
+                            }
+                        }
+                        if different {
+                            // We found a coplanar copy of the ridge, thus a disentanglement.
                             let mut new_ridge = ridge.clone();
 
                             let mut new_list = ElementList::new();
@@ -661,28 +709,88 @@ fn faceting_subdim(
                             }
                             new_ridge[2] = new_list;
 
-                            new_ridge.element_sort_strong();
-
-                            if ridge_orbits.get(&new_ridge).is_none() {
-                                ridge_orbits.insert(new_ridge, orbit_idx);
-                                count += 1;
-                            }
+                            disentangled = Some(new_ridge);
+                            break;
                         }
-                        r_i_o_row_row.push(orbit_idx);
-                        ridge_counts.push(count);
-                        orbit_idx += 1;
+                    }
+                    if let Some(copy) = &mut disentangled {
+                        let mut compound = ridge.clone();
+                        compound.append(copy);
+                    }
+                }
+                */
+
+                let mut found = false;
+
+                for row in &vertex_map {
+                    let mut new_ridge = ridge.clone();
+                
+                    let mut new_list = ElementList::new();
+                    for i in 0..new_ridge[2].len() {
+                        let mut new = Element::new(Subelements::new(), Superelements::new());
+                        for sub in &ridge[2][i].subs {
+                            new.subs.push(row[*sub])
+                        }
+                        new_list.push(new);
+                    }
+                    new_ridge[2] = new_list;
+
+                    new_ridge.element_sort_strong();
+                    if let Some((idx, _)) = ridge_orbits.get(&new_ridge) {
+                        // writes the orbit index at the ridge index
+                        r_i_o_row_row.push((*idx, false));
+                        found = true;
+                        break
+                    }
+                }
+
+                if !found {
+                    // counts the ridges in the orbit
+                    let mut count = 0;
+                    let mut set = HashSet::new();
+
+                    for row in &vertex_map {
+                        let mut new_ridge = ridge.clone();
+                    
+                        let mut new_list = ElementList::new();
+                        for i in 0..new_ridge[2].len() {
+                            let mut new = Element::new(Subelements::new(), Superelements::new());
+                            for sub in &ridge[2][i].subs {
+                                new.subs.push(row[*sub])
+                            }
+                            new_list.push(new);
+                        }
+                        new_ridge[2] = new_list;
+
+                        new_ridge.element_sort_strong();
+                        if set.get(&new_ridge).is_none() {
+                            set.insert(new_ridge);
+                            count += 1;
+                        }
+                    }
+                    ridge_orbits.insert(ridge, (orbit_idx, count));
+                    r_i_o_row_row.push((orbit_idx, false));
+                    ridge_counts.push(count);
+                    orbit_idx += 1;
+                    
+                    if now.elapsed().as_millis() > DELAY {
+                        print!("{}{}/{} hp, {} ridges", CL, hp_i + 1, hyperplane_orbits.len(), ridge_orbits.len());
+                        std::io::stdout().flush().unwrap();
+                        now = Instant::now();
                     }
                 }
             }
             r_i_o_row.push(r_i_o_row_row);
         }
         ridge_idx_orbits.push(r_i_o_row);
-        hp_i += 1;
+
+        print!("{}{}/{} hp, {} ridges", CL, hp_i, hyperplane_orbits.len(), ridge_orbits.len());
+        std::io::stdout().flush().unwrap();
     }
 
     let mut f_counts = Vec::new();
     for orbit in hyperplane_orbits {
-        f_counts.push(orbit.len());
+        f_counts.push(orbit.2);
     }
 
     // Actually do the faceting
@@ -700,14 +808,14 @@ fn faceting_subdim(
             for ridge_idx in ridge_idxs_local {
                 let ridge_orbit = ridge_idx_orbits[hp][ridge_idx.0][ridge_idx.1];
                 let ridge_count = ff_counts[hp][ridge_idx.0];
-                let total_ridge_count = ridge_counts[ridge_orbit];
+                let total_ridge_count = ridge_counts[ridge_orbit.0];
                 let mul = f_count * ridge_count / total_ridge_count;
 
                 if mul == 1 {
-                    ones[ridge_orbit].push((hp, f));
+                    ones[ridge_orbit.0].push((hp, f));
                 }
 
-                ridge_muls_facet[ridge_orbit] = mul;
+                ridge_muls_facet[ridge_orbit.0] = mul;
             }
 
             ridge_muls_hp.push(ridge_muls_facet);
@@ -734,7 +842,7 @@ fn faceting_subdim(
         }
     }
 
-	let mut skipped = 0;
+    let mut skipped = 0;
     'l: while let Some((facets, min_hp, cached_ridge_muls)) = facets_queue.pop_back() {
         if uniform {
             if now.elapsed().as_millis() > DELAY && print_faceting_count {
@@ -763,10 +871,13 @@ fn faceting_subdim(
             let ridge_idxs_local = &possible_facets[hp][f].1;
             for ridge_idx in ridge_idxs_local {
                 let ridge_orbit = ridge_idx_orbits[hp][ridge_idx.0][ridge_idx.1];
-                let mul = ridge_muls[hp][f][ridge_orbit];
+                let mut mul = ridge_muls[hp][f][ridge_orbit.0];
+                if ridge_orbit.1 { // disentangled ridge
+                    mul /= 2;
+                }
 
-                new_ridge_muls[ridge_orbit] += mul;
-                if new_ridge_muls[ridge_orbit] > 2 {
+                new_ridge_muls[ridge_orbit.0] += mul;
+                if !exotic && new_ridge_muls[ridge_orbit.0] > 2 {
                     break 'a;
                 }
             }
@@ -774,12 +885,19 @@ fn faceting_subdim(
         }
         let mut valid = 0; // 0: valid, 1: exotic, 2: incomplete
         for r in &new_ridge_muls {
-            if *r > 2 {
-                valid = 1;
-                break
-            }
-            if *r == 1 {
-                valid = 2;
+            if exotic {
+                if *r % 2 == 1 {
+                    valid = 2;
+                    break
+                }
+            } else {
+                if *r > 2 {
+                    valid = 1;
+                    break
+                }
+                if *r == 1 {
+                    valid = 2;
+                }
             }
         }
         match valid {
@@ -834,7 +952,7 @@ fn faceting_subdim(
                 let mut ranks = Ranks::new();
                 ranks.push(vec![Element::new(vec![].into(), vec![].into())].into()); // nullitope
                 ranks.push(vec![Element::new(vec![0].into(), vec![].into()); total_vert_count].into()); // vertices
-				
+                
                 let mut ranks2 = Ranks::new();
                 ranks2.push(vec![Element::new(vec![].into(), vec![].into())].into()); // nullitope
 
@@ -898,40 +1016,40 @@ fn faceting_subdim(
                         new_rank.push(Element::new(el, vec![].into()));
                     }
                     ranks.push(new_rank);
-					
-					if uniform {
-						let mut subs_to_idx = HashMap::new();
-						let mut idx_to_subs = Vec::new();
-						let mut idx = 0;
-						for facet in &facet_vec2 {
-							let els = &facet[r];
-							for el in els {
-								if subs_to_idx.get(&el.subs).is_none() {
-									subs_to_idx.insert(el.subs.clone(), idx);
-									idx_to_subs.push(el.subs.clone());
-									idx += 1;
-								}
-							}
-						}
-						for i in 0..facet_vec2.len() {
-							let mut new_list = ElementList::new();
-							for j in 0..facet_vec2[i][r+1].len() {
-								let mut new = Element::new(Subelements::new(), Superelements::new());
-								for sub in &facet_vec2[i][r+1][j].subs {
-									let sub_subs = &facet_vec2[i][r][*sub].subs;
-									new.subs.push(*subs_to_idx.get(sub_subs).unwrap())
-								}
-								new_list.push(new);
-							}
-							facet_vec2[i][r+1] = new_list;
-						}
+                    
+                    if uniform {
+                        let mut subs_to_idx = HashMap::new();
+                        let mut idx_to_subs = Vec::new();
+                        let mut idx = 0;
+                        for facet in &facet_vec2 {
+                            let els = &facet[r];
+                            for el in els {
+                                if subs_to_idx.get(&el.subs).is_none() {
+                                    subs_to_idx.insert(el.subs.clone(), idx);
+                                    idx_to_subs.push(el.subs.clone());
+                                    idx += 1;
+                                }
+                            }
+                        }
+                        for i in 0..facet_vec2.len() {
+                            let mut new_list = ElementList::new();
+                            for j in 0..facet_vec2[i][r+1].len() {
+                                let mut new = Element::new(Subelements::new(), Superelements::new());
+                                for sub in &facet_vec2[i][r+1][j].subs {
+                                    let sub_subs = &facet_vec2[i][r][*sub].subs;
+                                    new.subs.push(*subs_to_idx.get(sub_subs).unwrap())
+                                }
+                                new_list.push(new);
+                            }
+                            facet_vec2[i][r+1] = new_list;
+                        }
 
-						let mut new_rank = ElementList::new();
-						for el in idx_to_subs {
-							new_rank.push(Element::new(el, vec![].into()));
-						}
-						ranks2.push(new_rank);
-					}
+                        let mut new_rank = ElementList::new();
+                        for el in idx_to_subs {
+                            new_rank.push(Element::new(el, vec![].into()));
+                        }
+                        ranks2.push(new_rank);
+                    }
                 }
                 let mut new_rank = ElementList::new();
                 let mut set = HashSet::new();
@@ -948,24 +1066,24 @@ fn faceting_subdim(
                 ranks.push(new_rank); // facets
 
                 ranks.push(vec![Element::new(Subelements::from_iter(0..n_r_len), Superelements::new())].into()); // body
-				
-				if uniform {
-					let mut new_rank = ElementList::new();
-					let mut set = HashSet::new();
+                
+                if uniform {
+                    let mut new_rank = ElementList::new();
+                    let mut set = HashSet::new();
 
-					for f_i in 0..facet_vec2.len() {
-						facet_vec2[f_i][rank-1][0].subs.sort();
-						let subs = facet_vec2[f_i][rank-1][0].subs.clone();
-						if !set.contains(&subs) {
-							new_rank.push(Element::new(subs.clone(), Superelements::new()));
-							set.insert(subs);
-						}
-					}
-					let n_r_len = new_rank.len();
-					ranks2.push(new_rank); // facets
+                    for f_i in 0..facet_vec2.len() {
+                        facet_vec2[f_i][rank-1][0].subs.sort();
+                        let subs = facet_vec2[f_i][rank-1][0].subs.clone();
+                        if !set.contains(&subs) {
+                            new_rank.push(Element::new(subs.clone(), Superelements::new()));
+                            set.insert(subs);
+                        }
+                    }
+                    let n_r_len = new_rank.len();
+                    ranks2.push(new_rank); // facets
 
-					ranks2.push(vec![Element::new(Subelements::from_iter(0..n_r_len), Superelements::new())].into()); // body
-				}
+                    ranks2.push(vec![Element::new(Subelements::from_iter(0..n_r_len), Superelements::new())].into()); // body
+                }
 
                 if uniform {
                     unsafe {
@@ -996,21 +1114,21 @@ fn faceting_subdim(
                                 output.push((ranks, new_facets.clone()));
                                 output_facets.push(new_facets.clone());
                             } else {
-								poly.element_sort();
-								let components = poly.defiss();
-								let mut isogonal = true;
-								for component in components {
-									if component.element_types()[1].len() > 1 {
-										isogonal = false;
-										break;
-									}
-								}
-								if isogonal {
-									output.push((ranks, new_facets.clone()));
-									output_facets.push(new_facets.clone());
-								} else {
-									skipped += 1;
-								}
+                                poly.element_sort();
+                                let components = poly.defiss();
+                                let mut isogonal = true;
+                                for component in components {
+                                    if component.element_types()[1].len() > 1 {
+                                        isogonal = false;
+                                        break;
+                                    }
+                                }
+                                if isogonal {
+                                    output.push((ranks, new_facets.clone()));
+                                    output_facets.push(new_facets.clone());
+                                } else {
+                                    skipped += 1;
+                                }
                             }
                         } else {
                             unreachable!();
@@ -1026,24 +1144,24 @@ fn faceting_subdim(
                         break 'l;
                     }
                 }
-
-                if noble_package.is_none() {
-                    let mut used_hps = HashSet::new();
-                    for facet in facets.iter().skip(1) {
-                        used_hps.insert(facet.0);
-                    }
-                    for (hp, list) in possible_facets.iter().enumerate().skip(min_hp+1) {
-                        if !used_hps.contains(&hp) {
-                            for f in 0..list.len() {
-                                let mut new_facets = facets.clone();
-                                new_facets.push((hp, f));
-                                facets_queue.push_back((new_facets, hp, new_ridge_muls.clone()));
+                if include_compounds {
+                    if noble_package.is_none() {
+                        let mut used_hps = HashSet::new();
+                        for facet in facets.iter().skip(1) {
+                            used_hps.insert(facet.0);
+                        }
+                        for (hp, list) in possible_facets.iter().enumerate().skip(min_hp+1) {
+                            if !used_hps.contains(&hp) {
+                                for f in 0..list.len() {
+                                    let mut new_facets = facets.clone();
+                                    new_facets.push((hp, f));
+                                    facets_queue.push_back((new_facets, hp, new_ridge_muls.clone()));
+                                }
                             }
                         }
                     }
                 }
             }
-            1 => {}
             2 => {
                 let mut used_hps = HashSet::new();
                 for facet in facets.iter().skip(1) {
@@ -1072,6 +1190,25 @@ fn faceting_subdim(
     output.sort_by(|a,b| a.1.cmp(&b.1));
     output_facets.sort_unstable();
 
+    if !include_compounds {
+        let output_idxs = filter_irc(&output_facets);
+        let mut output_facets_new = Vec::new();
+        for idx in output_idxs {
+            output_facets_new.push(output_facets[idx].clone());
+        }
+        output_facets = output_facets_new;
+        // Match the output with the new output facets.
+        let mut output_new = Vec::new();
+        let mut idx = 0;
+        for output_component in output {
+            if output_component.1 == output_facets[idx] {
+                output_new.push(output_component);
+                idx += 1;
+            }
+        }
+        output = output_new;
+    }
+
     let mut output_ridges = Vec::new();
     for i in possible_facets_global {
         let mut a = Vec::new();
@@ -1092,6 +1229,7 @@ impl Concrete {
         vertices: Vec<Point<f64>>,
         symmetry: GroupEnum,
         any_single_edge_length: bool,
+        exclude_unit_edges: bool,
         mut min_edge_length: Option<f64>,
         mut max_edge_length: Option<f64>,
         min_inradius: Option<f64>,
@@ -1100,20 +1238,31 @@ impl Concrete {
         only_below_vertex: bool,
         noble: Option<usize>,
         max_per_hyperplane: Option<usize>,
-		uniform: bool,
+        min_vertices_per_hyperplane: Option<usize>,
+        max_vertices_per_hyperplane: Option<usize>,
+        kept_vertex_orbit: Option<usize>,
+        min_hyperplane_copies: Option<usize>,
+        max_hyperplane_copies: Option<usize>,
+        max_hyperplane_orbits: Option<usize>,
+        skew_rank: Option<usize>,
         include_compounds: bool,
+        include_compound_elements: bool,
         mark_fissary: bool,
         label_facets: bool,
         save: bool,
         save_facets: bool,
         save_to_file: bool,
-        file_path: String
+        file_path: String,
+        r: bool,
+        exotic: bool,
+        exotic_elements: bool,
+        uniform: bool
     ) -> Vec<(Concrete, Option<String>)> {
-        let rank = self.rank();
+        let rank = if let Some(sr) = skew_rank {sr+1} else {self.rank()};
         let mut now = Instant::now();
 
-        if rank < 4 {
-            println!("\nFaceting polytopes of rank less than 3 is not supported!\n");
+        if rank < 3 {
+            println!("\nFaceting polytopes of rank less than 2 is not supported!\n");
             return Vec::new()
         }
 
@@ -1132,20 +1281,20 @@ impl Concrete {
                 if chiral {
                     println!("\nComputing rotation symmetry group...");
                     let g = self.get_rotation_group().unwrap();
-                    println!("Rotation symmetry order {}", g.0.count());
+                    println!("\nRotation symmetry order {}", g.0.count());
                     g.1
                 }
                 else {
                     println!("\nComputing symmetry group...");
                     let g = self.get_symmetry_group().unwrap();
-                    println!("Symmetry order {}", g.0.count());
+                    println!("\nSymmetry order {}", g.0.count());
                     g.1
                 }
             },
         };
 
         let mut output = Vec::new();
-
+        
         println!("\nMatching vertices...");
 
         // Checking every r-tuple of vertices would take too long, so we put pairs into orbits first to reduce the number.
@@ -1191,12 +1340,23 @@ impl Concrete {
             possible_lengths_ordf.sort_unstable();
 
             if possible_lengths_ordf.len() > 0 {
-                possible_lengths.push(possible_lengths_ordf[0].0);
+                if exclude_unit_edges {
+                    if (possible_lengths_ordf[0].0 - 1.0).abs() > f64::EPS && (possible_lengths_ordf[0].0 - (if let Some(cs) = self.circumsphere() {cs.radius()} else {0.0})).abs() > f64::EPS {
+                        possible_lengths.push(possible_lengths_ordf[0].0);
+                    }
+                } else {
+                    possible_lengths.push(possible_lengths_ordf[0].0);
+                }
             }
             for idx in 0..possible_lengths_ordf.len()-1 {
                 let len1 = possible_lengths_ordf[idx].0;
                 let len2 = possible_lengths_ordf[idx+1].0;
                 if len2-len1 > f64::EPS {
+                    if exclude_unit_edges {
+                        if (len2 - 1.0).abs() < f64::EPS || (len2 - (if let Some(cs) = self.circumsphere() {cs.radius()} else {0.0})).abs() < f64::EPS {
+                            continue;
+                        }
+                    }
                     possible_lengths.push(len2);
                 }
             }
@@ -1204,7 +1364,7 @@ impl Concrete {
             println!("Found {} edge lengths: {:?}", possible_lengths.len(), possible_lengths);
         }
         let mut edge_length_idx = 0;
-        
+
         loop {
             if any_single_edge_length {
                 let edge_length = possible_lengths[edge_length_idx];
@@ -1218,13 +1378,13 @@ impl Concrete {
             let mut hyperplane_orbits = Vec::new();
 
             if only_below_vertex {
-                for v_orbit in &vertex_orbits {
+                'ab: for v_orbit in &vertex_orbits {
                     let mut map = BTreeMap::<OrderedFloat<f64>, Vec<usize>>::new();
                     let rep = v_orbit[0];
                     let point = &vertices[rep];
 
                     for (idx, vertex) in vertices.iter().enumerate() {
-                        let dot = OrderedFloat(vertex.dot(point));
+                        let dot = OrderedFloat((vertex.dot(point)*100000.).round());
                         if let Some(list) = map.get_mut(&dot) {
                             list.push(idx);
                         } else {
@@ -1247,27 +1407,12 @@ impl Concrete {
                         }
                         dbg_count += 1;
 
-                        // WLOG checks if the vertices are all the right distance away from the first vertex.
-                        for v in &list[1..] {
-                            let edge_length = (&vertices[*v]-&vertices[list[0]]).norm();
-                            if let Some(min) = min_edge_length {
-                                if edge_length < min - f64::EPS {
-                                    continue 'd;
-                                }
-                            }
-                            if let Some(max) = max_edge_length {
-                                if edge_length > max + f64::EPS {
-                                    continue 'd;
-                                }
-                            }
-                        }
-
                         // We define a hyperplane from the list of vertices.
                         let points = list.iter().map(|x| &vertices[*x]);
 
                         let hyperplane = Subspace::from_points(points);
 
-                        if hyperplane.is_hyperplane() {
+                        if hyperplane.rank() == rank - 2 {
                             let inradius = hyperplane.distance(&Point::zeros(self.dim().unwrap()));
                             if let Some(min) = min_inradius {
                                 if inradius < min - f64::EPS {
@@ -1288,7 +1433,22 @@ impl Concrete {
                             let mut hyperplane_vertices = Vec::new();
                             for (idx, v) in vertices.iter().enumerate() {
                                 if hyperplane.distance(&v) < f64::EPS {
+                                    if let Some(k_v_o) = kept_vertex_orbit {
+                                        if orbit_of_vertex[idx] != k_v_o {
+                                            continue
+                                        } 
+                                    }
                                     hyperplane_vertices.push(idx);
+                                    if let Some(v_h) = max_vertices_per_hyperplane {
+                                        if hyperplane_vertices.len() > v_h {
+                                            continue 'd;
+                                        }
+                                    }
+                                }
+                            }
+                            if let Some(v_h) = min_vertices_per_hyperplane {
+                                if hyperplane_vertices.len() < v_h {
+                                    continue
                                 }
                             }
                             hyperplane_vertices.sort_unstable();
@@ -1309,41 +1469,54 @@ impl Concrete {
                                 }
 
                                 counting.insert(new_hp_v);
+                                if let Some(mhpc) = max_hyperplane_copies {
+                                    if counting.len() > mhpc {
+                                        continue 'd;
+                                    }
+                                }
+                            }
+                            if let Some(mhpc) = min_hyperplane_copies {
+                                if counting.len() < mhpc {
+                                    continue 'd;
+                                }
                             }
                             if is_new {
                                 checked.insert(hyperplane_vertices.clone());
                                 hyperplane_orbits.push((hyperplane, hyperplane_vertices, counting.len()));
+                                if let Some(mhpo) = max_hyperplane_orbits {
+                                    // Hyperplane orbits increment only once at a time.
+                                    if hyperplane_orbits.len() == mhpo {
+                                        break 'ab;
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
             else {
-
-                // Enumerate edges
-
                 let mut pair_orbits = Vec::new();
+                let mut pair_orbit_lengths = Vec::new();
                 let mut checked = vec![vec![false; vertices.len()]; vertices.len()];
                 
                 for orbit in &vertex_orbits {
                     let rep = orbit[0]; // We only need one representative per orbit.
                     for vertex in rep+1..vertices.len() {
-                        if now.elapsed().as_millis() > DELAY {
-                            print!("{}{} edge orbits, verts [{}, {}]", CL, pair_orbits.len(), rep, vertex);
-                            std::io::stdout().flush().unwrap();
-                            now = Instant::now();
+                        if let Some(k_v_o) = kept_vertex_orbit {
+                            if orbit_of_vertex[vertex] != k_v_o {
+                                continue
+                            }
                         }
-
                         if !checked[rep][vertex] {
                             let edge_length = (&vertices[vertex]-&vertices[rep]).norm();
                             if let Some(min) = min_edge_length {
                                 if edge_length < min - f64::EPS {
-                                    continue;
+                                    continue
                                 }
                             }
                             if let Some(max) = max_edge_length {
                                 if edge_length > max + f64::EPS {
-                                    continue;
+                                    continue
                                 }
                             }
                             let mut new_orbit = Vec::new();
@@ -1358,11 +1531,16 @@ impl Concrete {
                                 }
                             }
                             pair_orbits.push(new_orbit);
+                            pair_orbit_lengths.push(edge_length);
                         }
                     }
                 }
-
-                println!("{}{} edge orbit{}", CL, pair_orbits.len(), if pair_orbits.len() == 1 {""} else {"s"});
+        
+                println!("{} edge orbit{}", pair_orbits.len(), if pair_orbits.len() == 1 {""} else {"s"});
+                for idx in 0..pair_orbits.len() {
+                    println!("{}: length {}, {} copies", idx, pair_orbit_lengths[idx], pair_orbits[idx].len());
+                }
+                println!("");
 
                 // Enumerate subspaces between lines and hyperplanes
 
@@ -1372,51 +1550,40 @@ impl Concrete {
                     let mut new_tuple_orbits = Vec::new();
 
                     for tuple in tuple_orbits {
-                        for new_vertex in tuple[tuple.len()-1]..vertices.len() {
+                        'a: for new_vertex in tuple[tuple.len()-1]..vertices.len() {
                             if now.elapsed().as_millis() > DELAY {
                                 print!("{}{} {}-plane orbits, verts {:?}", CL, new_tuple_orbits.len(), number-1, tuple);
                                 std::io::stdout().flush().unwrap();
                                 now = Instant::now();
                             }
 
-                            let mut wrong_edge = false;
-
                             let edge_length = (&vertices[tuple[0]]-&vertices[new_vertex]).norm();
                             if let Some(min) = min_edge_length {
                                 if edge_length < min - f64::EPS {
-                                    wrong_edge = true;
+                                    continue;
                                 }
                             }
                             if let Some(max) = max_edge_length {
                                 if edge_length > max + f64::EPS {
-                                    wrong_edge = true;
+                                    continue;
                                 }
-                            }
-                            if wrong_edge {
-                                continue;
                             }
 
                             let mut new_tuple = tuple.clone();
                             new_tuple.push(new_vertex);
 
-                            let mut already_seen = false;
                             for row in &vertex_map {
                                 let mut moved: Vec<usize> = new_tuple.iter().map(|x| row[*x]).collect();
                                 moved.sort_unstable();
 
                                 if checked.contains(&moved) {
-                                    already_seen = true;
-                                    break;
+                                    continue 'a;
                                 }
-                            }
-                            if already_seen {
-                                continue;
                             }
 
                             new_tuple.sort_unstable();
 
-                            let subspace = Subspace::from_points(new_tuple.iter().map(|x| &vertices[*x]));
-                            if subspace.rank() == number-1 {
+                            if Subspace::from_points(new_tuple.iter().map(|x| &vertices[*x])).rank() == number-1 {
                                 new_tuple_orbits.push(new_tuple.clone());
                             }
 
@@ -1426,19 +1593,18 @@ impl Concrete {
                     println!("{}{} {}-plane orbit{}", CL, new_tuple_orbits.len(), number-1, if new_tuple_orbits.len() == 1 {""} else {"s"});
                     tuple_orbits = new_tuple_orbits.iter().map(|x| x.clone()).collect();
                 }
-
+        
                 // Enumerate hyperplanes
                 let mut checked = HashSet::new();
-
-                for rep in tuple_orbits {
-                    let last_vert = rep[rep.len()-1];
-
-                    for new_vertex in last_vert+1..vertices.len() {
+        
+                'b: for (idx, rep) in tuple_orbits.iter().enumerate() {
+                    'c: for new_vertex in rep[rep.len()-1] + if rank == 3 {0} else {1}..vertices.len() {
+                        // We start with a pair and add enough vertices to define a hyperplane.
                         let mut tuple = rep.clone();
                         tuple.push(new_vertex);
 
                         if now.elapsed().as_millis() > DELAY {
-                            print!("{}{} hyperplane orbits, verts {:?}", CL, hyperplane_orbits.len(), tuple);
+                            print!("{}{} hyperplane orbits, tuple orbit {}/{}, verts {:?}", CL, hyperplane_orbits.len(), idx, tuple_orbits.len(), tuple);
                             std::io::stdout().flush().unwrap();
                             now = Instant::now();
                         }
@@ -1455,6 +1621,12 @@ impl Concrete {
                             }
                         }
 
+                        if let Some(k_v_o) = kept_vertex_orbit {
+                            if orbit_of_vertex[new_vertex] != k_v_o {
+                                continue;
+                            }
+                        }
+
                         let mut points = Vec::new();
                         for v in tuple {
                             points.push(vertices[v].clone());
@@ -1462,7 +1634,7 @@ impl Concrete {
 
                         let hyperplane = Subspace::from_points(points.iter());
 
-                        if hyperplane.is_hyperplane() {
+                        if hyperplane.rank() == rank - 2 {
                             let inradius = hyperplane.distance(&Point::zeros(self.dim().unwrap()));
                             if let Some(min) = min_inradius {
                                 if inradius < min - f64::EPS {
@@ -1483,7 +1655,22 @@ impl Concrete {
                             let mut hyperplane_vertices = Vec::new();
                             for (idx, v) in vertices.iter().enumerate() {
                                 if hyperplane.distance(&v) < f64::EPS {
+                                    if let Some(k_v_o) = kept_vertex_orbit {
+                                        if orbit_of_vertex[idx] != k_v_o {
+                                            continue
+                                        } 
+                                    }
                                     hyperplane_vertices.push(idx);
+                                    if let Some(v_h) = max_vertices_per_hyperplane {
+                                        if hyperplane_vertices.len() > v_h {
+                                            break 'c;
+                                        }
+                                    }
+                                }
+                            }
+                            if let Some(v_h) = min_vertices_per_hyperplane {
+                                if hyperplane_vertices.len() < v_h {
+                                    break
                                 }
                             }
                             hyperplane_vertices.sort_unstable();
@@ -1500,14 +1687,30 @@ impl Concrete {
 
                                 if checked.contains(&new_hp_v) {
                                     is_new = false;
-                                    break;
+                                    break
                                 }
 
                                 counting.insert(new_hp_v);
+                                if let Some(mhpc) = max_hyperplane_copies {
+                                    if counting.len() > mhpc {
+                                        break 'c;
+                                    }
+                                }
+                            }
+                            if let Some(mhpc) = min_hyperplane_copies {
+                                if counting.len() < mhpc {
+                                    break 'c;
+                                }
                             }
                             if is_new {
                                 checked.insert(hyperplane_vertices.clone());
                                 hyperplane_orbits.push((hyperplane, hyperplane_vertices, counting.len()));
+                                if let Some(mhpo) = max_hyperplane_orbits {
+                                    // Hyperplane orbits increment only once at a time.
+                                    if hyperplane_orbits.len() == mhpo {
+                                        break 'b;
+                                    }
+                                }
                             }
                         }
                     }
@@ -1574,7 +1777,7 @@ impl Concrete {
                 };
 
                 let (possible_facets_row, ff_counts_row, ridges_row, compound_facets_row) =
-                    faceting_subdim(rank-1, hp, points, new_stabilizer, min_edge_length, max_edge_length, max_per_hyperplane, uniform, noble_package, true);
+                    faceting_subdim(rank-1, hp, points, new_stabilizer, min_edge_length, max_edge_length, max_per_hyperplane, include_compound_elements, exotic_elements, uniform, noble_package, true);
 
                 let mut possible_facets_global_row = Vec::new();
                 for f in &possible_facets_row {
@@ -1687,7 +1890,7 @@ impl Concrete {
                                     break;
                                 }
                             }
-                            if let Some(copy) = &disentangled {
+                            if let Some(copy) = &mut disentangled {
                                 let mut compound = ridge.clone();
                                 compound.append(copy);
                             }
@@ -1712,7 +1915,7 @@ impl Concrete {
                             new_ridge.element_sort_strong();
                             if let Some((idx, _)) = ridge_orbits.get(&new_ridge) {
                                 // writes the orbit index at the ridge index
-                                r_i_o_row_row.push(*idx);
+                                r_i_o_row_row.push((*idx, false));
                                 found = true;
                                 break
                             }
@@ -1743,12 +1946,12 @@ impl Concrete {
                                 }
                             }
                             ridge_orbits.insert(ridge, (orbit_idx, count));
-                            r_i_o_row_row.push(orbit_idx);
+                            r_i_o_row_row.push((orbit_idx, false));
                             ridge_counts.push(count);
                             orbit_idx += 1;
                             
                             if now.elapsed().as_millis() > DELAY {
-                                print!("{}{}/{} hp, {} ridges", CL, hp_i, hyperplane_orbits.len(), ridge_orbits.len());
+                                print!("{}{}/{} hp, {} ridges", CL, hp_i + 1, hyperplane_orbits.len(), ridge_orbits.len());
                                 std::io::stdout().flush().unwrap();
                                 now = Instant::now();
                             }
@@ -1779,14 +1982,14 @@ impl Concrete {
                     for ridge_idx in ridge_idxs_local {
                         let ridge_orbit = ridge_idx_orbits[hp][ridge_idx.0][ridge_idx.1];
                         let ridge_count = ff_counts[hp][ridge_idx.0];
-                        let total_ridge_count = ridge_counts[ridge_orbit];
+                        let total_ridge_count = ridge_counts[ridge_orbit.0];
                         let mul = f_count * ridge_count / total_ridge_count;
 
                         if mul == 1 {
-                            ones[ridge_orbit].push((hp, f));
+                            ones[ridge_orbit.0].push((hp, f));
                         }
         
-                        ridge_muls_facet[ridge_orbit] = mul;
+                        ridge_muls_facet[ridge_orbit.0] = mul;
                     }
 
                     ridge_muls_hp.push(ridge_muls_facet);
@@ -1832,10 +2035,13 @@ impl Concrete {
                     let ridge_idxs_local = &possible_facets[hp][f].1;
                     for ridge_idx in ridge_idxs_local {
                         let ridge_orbit = ridge_idx_orbits[hp][ridge_idx.0][ridge_idx.1];
-                        let mul = ridge_muls[hp][f][ridge_orbit];
+                        let mut mul = ridge_muls[hp][f][ridge_orbit.0];
+                        if ridge_orbit.1 { // disentangled ridge
+                            mul /= 2;
+                        }
         
-                        new_ridge_muls[ridge_orbit] += mul;
-                        if new_ridge_muls[ridge_orbit] > 2 {
+                        new_ridge_muls[ridge_orbit.0] += mul;
+                        if !exotic && new_ridge_muls[ridge_orbit.0] > 2 {
                             break 'a;
                         }
                     }
@@ -1843,14 +2049,22 @@ impl Concrete {
                 }
                 let mut valid = 0; // 0: valid, 1: exotic, 2: incomplete
                 for r in &new_ridge_muls {
-                    if *r > 2 {
-                        valid = 1;
-                        break
-                    }
-                    if *r == 1 {
-                        valid = 2;
+                    if exotic {
+                        if *r % 2 == 1 {
+                            valid = 2;
+                            break
+                        }
+                    } else {
+                        if *r > 2 {
+                            valid = 1;
+                            break
+                        }
+                        if *r == 1 {
+                            valid = 2;
+                        }
                     }
                 }
+
                 match valid {
                     0 => {
                         // Split compound facets into their components.
@@ -1897,7 +2111,6 @@ impl Concrete {
                             }
                         }
                     }
-                    1 => {}
                     2 => {
                         if let Some(max_facets) = noble {
                             if facets.len() == max_facets {
@@ -1927,8 +2140,8 @@ impl Concrete {
                     _ => {}
                 }
             }
-
-            println!("{}{} facetings", CL, output_facets.len());
+            
+            println!("{}{} faceting{}", CL, output_facets.len(), if output_facets.len() == 1 {""} else {"s"});
 
             output_facets.sort_unstable();
 
@@ -1944,10 +2157,11 @@ impl Concrete {
 
             // Output the faceted polytopes. We will build them from their sets of facet orbits.
 
-            println!("Found {} facetings", output_facets.len());
+            println!("Found {} faceting{}", output_facets.len(), if output_facets.len() == 1 {""} else {"s"});
             println!("\nBuilding...");
             let mut used_facets = HashMap::new(); // used for outputting the facets at the end if `save_facets` is `true`.
             let mut faceting_idx = 0; // We used to use `output.len()` but this doesn't work if you skip outputting the polytopes.
+            let num_facetings = output_facets.len();
 
             for facets in output_facets {
                 if !save && !save_facets {
@@ -1955,7 +2169,7 @@ impl Concrete {
                     for facet in &facets {
                         facets_fmt.push_str(&format!(" ({},{})", facet.0, facet.1));
                     }
-                    println!("Faceting {}:{}", faceting_idx, facets_fmt);
+                    println!("Faceting {}/{}:{}", faceting_idx + 1, num_facetings, facets_fmt);
 
                     faceting_idx += 1;
                     continue
@@ -1979,7 +2193,7 @@ impl Concrete {
                         for facet in &facets {
                             facets_fmt.push_str(&format!(" ({},{})", facet.0, facet.1));
                         }
-                        println!("Faceting {}:{}", faceting_idx, facets_fmt);
+                        println!("Faceting {}/{}:{}", faceting_idx + 1, num_facetings, facets_fmt);
 
                         faceting_idx += 1;
                         continue
@@ -2143,13 +2357,20 @@ impl Concrete {
                         }
 
                         if save {
+                            if r {
+                                if fissary_status != "" {
+                                    println!("Faceting {}/{}:{}{}", faceting_idx + 1, num_facetings, facets_fmt, fissary_status);
+                                    faceting_idx += 1;
+                                    continue
+                                }
+                            }
+
                             let name = format!("faceting {}{}{}{}",
                                 if any_single_edge_length {edge_length_idx.to_string() + "."} else {"".to_string()},
                                 faceting_idx,
                                 if label_facets {" -".to_owned() + &facets_fmt.to_string()} else {"".to_string()},
                                 fissary_status
                             );
-
                             if save_to_file {
                                 let mut path = PathBuf::from(&file_path);
                                 path.push(format!("{}.off", name));
@@ -2161,14 +2382,13 @@ impl Concrete {
                                 output.push((poly.clone(), Some(name)));
                             }
                         }
-
                         if save_facets {
                             for (orbit, idx) in used_facets_current {
                                 used_facets.insert(orbit, poly.facet(idx).unwrap());
                             }
                         }
                         
-                        println!("Faceting {}:{}{}", faceting_idx, facets_fmt, fissary_status);
+                        println!("Faceting {}/{}:{}{}", faceting_idx + 1, num_facetings, facets_fmt, fissary_status);
 
                         faceting_idx += 1;
                     }

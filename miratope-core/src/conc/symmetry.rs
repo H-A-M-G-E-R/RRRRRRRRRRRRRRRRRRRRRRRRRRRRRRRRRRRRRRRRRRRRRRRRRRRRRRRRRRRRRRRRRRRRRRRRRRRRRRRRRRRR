@@ -15,18 +15,20 @@ use vec_like::*;
 
 use super::ConcretePolytope;
 
+const CL: &str = "\r                                                                               \r";
+
 impl Flag {
     /// Outputs a sequence of vertices obtained from applying a fixed sequence of flag changes to a flag.
     /// Used for computing the elements of a symmetry group. 
     fn vertex_sequence(&mut self, p: &Concrete) -> Matrix<f64> {
-        let rank = p.rank();
-        let mut basis = Matrix::<f64>::zeros(rank-1,rank-1);
+        let dim = p.dim().unwrap();
+        let mut basis = Matrix::<f64>::zeros(dim,dim);
         let mut columns = basis.column_iter_mut();
         let vertex = &p.vertices[self[1]];
 
         columns.next().unwrap().copy_from(&vertex);
         for mut col in columns {
-            for r in 1..rank {
+            for r in 1..p.rank() {
                 self.change_mut(&p.abs, r);
             }
             let vertex = &p.vertices[self[1]];
@@ -102,6 +104,7 @@ impl Concrete {
         let base_basis_inverse = base_basis.clone().try_inverse().unwrap();
 
         let mut group = Vec::<Matrix<f64>>::new();
+        let mut isometry_idx = 0;
 
         'a: for flag in flag_iter {
             if flag
@@ -143,11 +146,13 @@ impl Concrete {
                 // add to group if so
                 group.push(isometry);
                 vertex_map.push(vertex_map_row);
+                isometry_idx += 1;
+                print!("{}{} isometries", CL, isometry_idx);
             }
         }
 
         unsafe {
-            Some((Group::new(&self.rank()-1, group.into_iter()), vertex_map))
+            Some((Group::new(self.dim().unwrap(), group.into_iter()), vertex_map))
         }
     }
 
@@ -227,7 +232,7 @@ impl Vertices {
         }
 
         let mut vertex_map: Vec<Vec<usize>> = Vec::new();
-
+        let mut isometry_idx = 0;
         for isometry in group {
             let mut vertex_map_row = Vec::<usize>::new();
             for vertex in &vertices_vec {
@@ -242,6 +247,8 @@ impl Vertices {
                 }
             }
             vertex_map.push(vertex_map_row);
+            isometry_idx += 1;
+            print!("{}{} isometries", CL, isometry_idx);
         }
         
         (

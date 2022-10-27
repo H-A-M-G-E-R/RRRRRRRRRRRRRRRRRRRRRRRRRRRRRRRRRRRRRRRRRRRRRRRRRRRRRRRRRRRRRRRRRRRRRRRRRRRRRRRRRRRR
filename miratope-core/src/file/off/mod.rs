@@ -18,7 +18,7 @@ use vec_like::VecLike;
 const HEADER: &str = concat!(
     "Generated using Miratope v",
     env!("CARGO_PKG_VERSION"),
-    " (https://github.com/galoomba1/miratope-rs)"
+    " (https://github.com/H-A-M-G-E-R/miratope-rs)"
 );
 
 /// Any error encountered while parsing an OFF file.
@@ -199,6 +199,51 @@ impl<'a> TokenIter<'a> {
             .ok_or(OffParseError::UnexpectedEnding(self.position))?
             .parse()
     }
+
+    fn gta6(&mut self) -> Vec<f64> {
+        loop {
+            let (mut idx, mut c) = self.iter.next().unwrap();
+            let init_idx = idx;
+            let mut end_idx = init_idx;
+
+            loop {
+                match c {
+                    '#' => {
+                        self.comment = true;
+                        self.position.next();
+                    }
+
+                    '\n' => {
+                        self.comment = false;
+                        self.position.next_line();
+                        break;
+                    }
+
+                    _ => self.position.next(),
+                }
+
+                if self.comment {
+                    break;
+                }
+
+                end_idx = idx;
+                if let Some((new_idx, new_c)) = self.iter.next() {
+                    idx = new_idx;
+                    c = new_c;
+                } else {
+                    idx += 1;
+                    break;
+                }
+            }
+
+            if init_idx != idx {
+                let a: Vec<f64> = self.src[init_idx..=end_idx].split_whitespace().map(|x| f64::from_str(x).unwrap()).collect();
+                if !a.is_empty() {
+                    return a
+                }
+            }
+        }
+    }
 }
 
 impl<'a> Iterator for TokenIter<'a> {
@@ -268,7 +313,9 @@ impl<'a> OffReader<'a> {
         }
 
         // 2-elements go before 1-elements, we're undoing that.
-        el_nums.swap(1, 2);
+        if rank > 2 {
+            el_nums.swap(1, 2);
+        }
 
         Ok(el_nums)
     }
@@ -277,20 +324,13 @@ impl<'a> OffReader<'a> {
     fn parse_vertices(
         &mut self,
         count: usize,
-        dim: usize,
     ) -> OffParseResult<Vec<Point<f64>>> {
         // Reads all vertices.
         let mut vertices = Vec::with_capacity(count);
 
         // Add each vertex to the vector.
         for _ in 0..count {
-            let mut v = Vec::with_capacity(dim);
-
-            for _ in 0..dim {
-                v.push(self.iter.parse_next()?);
-            }
-
-            vertices.push(v.into());
+            vertices.push(Point::from_vec(self.iter.gta6().clone()));
         }
 
         Ok(vertices)
@@ -413,13 +453,12 @@ impl<'a> OffReader<'a> {
         match rank {
             0 => return Ok(Concrete::nullitope()),
             1 => return Ok(Concrete::point()),
-            2 => return Ok(Concrete::dyad()),
             _ => {}
         }
 
         // Reads the element numbers and vertices.
         let num_elems = self.el_nums(rank)?;
-        let vertices = self.parse_vertices(num_elems[0], rank - 1)?;
+        let vertices = self.parse_vertices(num_elems[0])?;
 
         // Adds nullitope and vertices.
         self.abs.reserve(rank + 2);
@@ -635,7 +674,7 @@ impl<'a> OffWriter<'a> {
 
             if rank == 3 {
                 self.push_str(", Components");
-            } else {
+            } else if rank > 3 {
                 self.push_str(", Faces, Edges");
 
                 for r in 4..rank {
@@ -939,6 +978,18 @@ mod tests {
     #[test]
     fn comments() {
         test_off!("comments", [1, 4, 6, 4, 1])
+    }
+
+    /// Checks that a petrie polygon of a tetrahedron has the correct amount of elements.
+    #[test]
+    fn petrie_polygon_of_tet_nums() {
+        test_off!("petrie polygon of tet", [1, 4, 4, 1])
+    }
+
+    /// Checks that comments in a skew OFF file are correctly parsed.
+    #[test]
+    fn skew_comments_nums() {
+        test_off!("skew comments", [1, 4, 4, 1])
     }
 
     /// Attempts to parse an OFF file, unwraps it.

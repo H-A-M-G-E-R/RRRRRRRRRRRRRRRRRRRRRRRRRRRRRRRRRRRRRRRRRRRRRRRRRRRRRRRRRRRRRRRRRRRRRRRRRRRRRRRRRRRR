@@ -172,6 +172,19 @@ impl Polytope for Concrete {
         ))
     }
 
+    fn other_skew_with(&mut self, flag: Flag) -> Option<Self> {
+        let vertices = self.abs.other_skew_vertices(flag)?;
+        let n = vertices.len();
+
+        Some(Self::new(
+            vertices
+                .into_iter()
+                .map(|idx| self.vertices[idx].clone())
+                .collect(),
+            Abstract::polygon(n),
+        ))
+    }
+
     /// "Appends" a polytope into another, creating a compound polytope.
     ///
     /// # Panics
@@ -213,8 +226,8 @@ impl Polytope for Concrete {
 
         Ok(None)
     }
-	
-	
+    
+    
     /// Makes a polytope strongly connected. Splits compounds into their components.
     fn defiss(&self) -> Vec<Concrete> {
         if self.rank() < 1 {
@@ -421,21 +434,21 @@ impl Polytope for Concrete {
             let dim = rank - 1;
             let mut vertices = Vec::with_capacity(rank);
 
-            // Adds all points with a single entry equal to √2/2, and all others
-            // equal to 0.
-            for i in 0..dim {
+            for i in 0..rank {
                 let mut v = Point::zeros(dim);
-                v[i] = f64::HALF_SQRT_2;
+                for n in 1..=dim {
+                    if n > i {
+                        v[n - 1] = ((n * (n + 1) / 2) as f64).fsqrt() / -((n * (n + 1)) as f64);
+                    } else if n < i {
+                        v[n - 1] = 0.0;
+                    } else {
+                        v[n - 1] = ((n * (n + 1) / 2) as f64).fsqrt() / ((n + 1) as f64)
+                    }
+                }
                 vertices.push(v);
             }
 
-            // Adds the remaining vertex, all of whose coordinates are equal.
-            let dim_f = dim as f64;
-            let a = (1.0 - (dim_f + 1.0).fsqrt()) * f64::HALF_SQRT_2 / dim_f;
-            vertices.push(vec![a; dim].into());
-
-            let mut simplex = Concrete::new(vertices, Abstract::simplex(rank));
-            simplex.recenter();
+            let simplex = Concrete::new(vertices, Abstract::simplex(rank));
             simplex
         }
     }
@@ -992,13 +1005,13 @@ pub trait ConcretePolytope: Polytope {
 
     /// Slices the polytope through a given plane.
     fn cross_section(&self, slice: &Hyperplane<f64>) -> Self;
-	
-	/// Checks if is fissary.
+    
+    /// Checks if is fissary.
     fn is_fissary(&self) -> bool;
-	
-	/// Compounds coplanar facets
+    
+    /// Compounds coplanar facets
     fn fuse_facets(&self) -> Self;
-	
+    
 }
 
 impl ConcretePolytope for Concrete {
@@ -1330,9 +1343,9 @@ impl ConcretePolytope for Concrete {
         let (abs, subflags) = self.abs().truncate_and_flags(truncate_type.clone());
         let element_vertices = self.avg_vertex_map();
 
-        let mut vertex_coords = Vec::<Point<f64>>::new();
+        let mut vertex_coords = Vec::new();
         for subflag in subflags {
-            let mut vector = Point::<f64>::from_vec(vec![0.0; self.rank() - 1]);
+            let mut vector = Point::zeros(self.dim().unwrap());
             for (r, i) in subflag.iter().enumerate() {
                 vector += element_vertices[truncate_type[r] + 1][*i].clone() * depth[truncate_type[r]];
             }
@@ -1342,81 +1355,81 @@ impl ConcretePolytope for Concrete {
 
         Self::new(vertex_coords, abs)
     }
-	
-	/// Checks if is fissary.
+    
+    /// Checks if is fissary.
     fn is_fissary(&self) -> bool {
         let types = self.element_types();
-		
+        
         let mut i = 1;
-		while i < types.len() {
-			if i == self.rank() {
-				break;
-			}
-			let mut j = 0;
-			while j < types[i].len() {
-				let example = types[i][j].example;
-				
-				let mut element = self.abs.element(i, example).unwrap();
-				
-				element.element_sort();
-				if self.element(i, example).unwrap().is_fissary() && !element.is_compound() {
-					return true;
-				}
-				
-				let mut figure = self.abs.element_fig(i, example).unwrap().unwrap();
-				figure.element_sort();
-				if figure.is_compound() {
-					return true;
-				}
-				j = j+1;
-			}
-			i = i+1;
-		}
-		return false;
+        while i < types.len() {
+            if i == self.rank() {
+                break;
+            }
+            let mut j = 0;
+            while j < types[i].len() {
+                let example = types[i][j].example;
+                
+                let mut element = self.abs.element(i, example).unwrap();
+                
+                element.element_sort();
+                if self.element(i, example).unwrap().is_fissary() && !element.is_compound() {
+                    return true;
+                }
+                
+                let mut figure = self.abs.element_fig(i, example).unwrap().unwrap();
+                figure.element_sort();
+                if figure.is_compound() {
+                    return true;
+                }
+                j = j+1;
+            }
+            i = i+1;
+        }
+        return false;
     }
-	
-	/// Fuses coplanar facets
-	fn fuse_facets(&self) -> Self {
-		let mut i = 0 as usize;
-		
-		let mut builder = AbstractBuilder::new();
-		
-		while i < self.rank()-1 {
-			builder.push_empty();
-			for el in &self.abs.ranks()[i] {
-				builder.push_subs(el.subs.clone());
-			}
-			i+=1;
-		}
+    
+    /// Fuses coplanar facets
+    fn fuse_facets(&self) -> Self {
+        let mut i = 0 as usize;
+        
+        let mut builder = AbstractBuilder::new();
+        
+        while i < self.rank()-1 {
+            builder.push_empty();
+            for el in &self.abs.ranks()[i] {
+                builder.push_subs(el.subs.clone());
+            }
+            i+=1;
+        }
 
-		builder.push_empty();
+        builder.push_empty();
 
-		i = 0 as usize;	
-		let mut compound = HashMap::<Vec<usize>,(usize,Subelements)>::new();
-		let mut current = 0 as usize;
-		while i < self.facet_count() {
-			let temp = self.element(self.rank() - 1, i).unwrap();
-			let facetvert = temp.vertices.iter();
-			let facet = self.abs.ranks()[self.rank() - 1][i].clone();
-			let subspace = Subspace::from_points(facetvert);
-			
-			let mut contained_vertices = self.vertices.clone().into_iter().enumerate().filter(|x| subspace.is_outer(&x.1)).map(|x| x.0).collect::<Vec<usize>>();
-			contained_vertices.sort();
-			if compound.contains_key(&contained_vertices) {
-				compound.get_mut(&contained_vertices).unwrap().1.extend(facet.subs.clone());
-			} else {
-				compound.insert(contained_vertices,(current,facet.subs.clone()));
-				current+=1;
-			}
-			i+=1;
-		}
-		let mut compound_ordered = compound.iter().map(|x| x.1).collect::<Vec<&(usize,Subelements)>>();
-		compound_ordered.sort_by(|a,b| a.0.cmp(&b.0));
-		compound_ordered.iter().for_each(|x| builder.push_subs(x.1.clone()));
-		
-		builder.push_max();
-		unsafe { Self::new(self.vertices.clone(),builder.build()) }
-	}
+        i = 0 as usize;    
+        let mut compound = HashMap::<Vec<usize>,(usize,Subelements)>::new();
+        let mut current = 0 as usize;
+        while i < self.facet_count() {
+            let temp = self.element(self.rank() - 1, i).unwrap();
+            let facetvert = temp.vertices.iter();
+            let facet = self.abs.ranks()[self.rank() - 1][i].clone();
+            let subspace = Subspace::from_points(facetvert);
+            
+            let mut contained_vertices = self.vertices.clone().into_iter().enumerate().filter(|x| subspace.is_outer(&x.1)).map(|x| x.0).collect::<Vec<usize>>();
+            contained_vertices.sort();
+            if compound.contains_key(&contained_vertices) {
+                compound.get_mut(&contained_vertices).unwrap().1.extend(facet.subs.clone());
+            } else {
+                compound.insert(contained_vertices,(current,facet.subs.clone()));
+                current+=1;
+            }
+            i+=1;
+        }
+        let mut compound_ordered = compound.iter().map(|x| x.1).collect::<Vec<&(usize,Subelements)>>();
+        compound_ordered.sort_by(|a,b| a.0.cmp(&b.0));
+        compound_ordered.iter().for_each(|x| builder.push_subs(x.1.clone()));
+        
+        builder.push_max();
+        unsafe { Self::new(self.vertices.clone(),builder.build()) }
+    }
 }
 
 #[cfg(test)]

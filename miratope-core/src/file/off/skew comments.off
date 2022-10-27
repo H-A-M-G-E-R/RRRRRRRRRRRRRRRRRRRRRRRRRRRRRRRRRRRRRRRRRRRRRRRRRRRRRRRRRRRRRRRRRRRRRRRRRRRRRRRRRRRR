@@ -1,0 +1,15 @@
+2OFF #this is a
+4 1 #skew
+#polygon
+
+1 1 1 #petrie polygon #of#tet
+1 -1 -1 #tet
+#middle
+-1 1 -1
+
+
+#near end
+
+-1 -1 1            
+
+4 0 1 2 3 255 0 0#THE END

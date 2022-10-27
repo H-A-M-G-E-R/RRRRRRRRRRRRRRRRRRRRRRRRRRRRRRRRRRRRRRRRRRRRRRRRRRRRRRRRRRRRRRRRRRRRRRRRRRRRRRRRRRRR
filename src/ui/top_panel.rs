@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use super::{camera::ProjectionType, memory::Memory, window::{Window, *}, UnitPointWidget, main_window::PolyName};
+use super::{camera::{ProjectionType, FillingType}, memory::Memory, window::{Window, *}, UnitPointWidget, main_window::PolyName};
 use crate::{Concrete, Float, Hyperplane, Point, Vector};
 
 use bevy::prelude::*;
@@ -335,6 +335,7 @@ pub fn show_top_panel(
     mut section_direction: ResMut<'_, Vec<SectionDirection>>,
     mut file_dialog_state: ResMut<'_, FileDialogState>,
     mut projection_type: ResMut<'_, ProjectionType>,
+    mut filling_type: ResMut<'_, FillingType>,
     mut poly_name: ResMut<'_, PolyName>,
     mut memory: ResMut<'_, Memory>,
     mut show_memory: ResMut<'_, ShowMemory>,
@@ -377,7 +378,7 @@ pub fn show_top_panel(
 
                 // Saves a file.
                 if ui.button("Save").clicked() {
-                    file_dialog_state.save(poly_name.0.clone());
+                    file_dialog_state.save(poly_name.0.to_string());
                 }
 
                 if ui.button("Export all memory slots").clicked() {
@@ -419,12 +420,19 @@ pub fn show_top_panel(
 
             // Configures the view.
             menu::menu(ui, "View", |ui| {
-                let mut checked = projection_type.is_orthogonal();
 
-                if ui.checkbox(&mut checked, "Orthogonal projection").clicked() {
+                if ui.checkbox(&mut projection_type.is_orthogonal(), "Orthogonal projection").clicked() {
                     projection_type.flip();
 
                     // Forces an update on all polytopes.
+                    if let Some(mut p) = query.iter_mut().next() {
+                        p.set_changed();
+                    }
+                }
+
+                if ui.checkbox(&mut filling_type.is_binary(), "Binary filling").clicked() {
+                    filling_type.flip();
+
                     if let Some(mut p) = query.iter_mut().next() {
                         p.set_changed();
                     }
@@ -485,14 +493,14 @@ pub fn show_top_panel(
                     if ui.button("Rotation symmetry group").clicked() {
                         if let Some(mut p) = query.iter_mut().next() {
                             let group = p.get_rotation_group().unwrap().0;
-                            println!("Rotation symmetry order {}", group.count());
+                            println!("\nRotation symmetry order {}", group.count());
                         }
                     }
                 } else {
                     if ui.button("Symmetry group").clicked() {
                         if let Some(mut p) = query.iter_mut().next() {
                             let group = p.get_symmetry_group().unwrap().0;
-                            println!("Symmetry order {}", group.count());
+                            println!("\nSymmetry order {}", group.count());
                         }
                     }
                 }
@@ -622,6 +630,21 @@ pub fn show_top_panel(
                                 println!("Petrie polygon succeeded.")
                             }
                             None => eprintln!("Petrie polygon failed."),
+                        }
+                    }
+                }
+
+                if ui.button("Other skew polygon").clicked() {
+                    if let Some(mut p) = query.iter_mut().next() {
+                        p.element_sort();
+                        let flag = p.first_flag();
+                        match p.other_skew_with(flag) {
+                            Some(q) => {
+                                *p = q;
+                                poly_name.0 = format!("Other skew polygon of {}", poly_name.0);
+                                println!("Other skew polygon succeeded.")
+                            }
+                            None => eprintln!("Other skew polygon failed."),
                         }
                     }
                 }
@@ -805,6 +828,7 @@ pub fn show_top_panel(
                                 GroupEnum2::FromSlot(_) => GroupEnum::VertexMap(vertices_thing.1)
                             },
                             faceting_settings.any_single_edge_length,
+                            faceting_settings.exclude_unit_edges,
                             if faceting_settings.do_min_edge_length {Some(faceting_settings.min_edge_length)} else {None}, 
                             if faceting_settings.do_max_edge_length {Some(faceting_settings.max_edge_length)} else {None}, 
                             if faceting_settings.do_min_inradius {Some(faceting_settings.min_inradius)} else {None}, 
@@ -813,14 +837,25 @@ pub fn show_top_panel(
                             faceting_settings.only_below_vertex,
                             if faceting_settings.max_facet_types == 0 {None} else {Some(faceting_settings.max_facet_types)},
                             if faceting_settings.max_per_hyperplane == 0 {None} else {Some(faceting_settings.max_per_hyperplane)},
-                            faceting_settings.uniform,
+                            if faceting_settings.min_vertices_per_hyperplane == 0 {None} else {Some(faceting_settings.min_vertices_per_hyperplane)},
+                            if faceting_settings.max_vertices_per_hyperplane == 0 {None} else {Some(faceting_settings.max_vertices_per_hyperplane)},
+                            if faceting_settings.do_kept_vertex_orbit {Some(faceting_settings.kept_vertex_orbit)} else {None},
+                            if faceting_settings.min_hyperplane_copies == 0 {None} else {Some(faceting_settings.min_hyperplane_copies)},
+                            if faceting_settings.max_hyperplane_copies == 0 {None} else {Some(faceting_settings.max_hyperplane_copies)},
+                            if faceting_settings.max_hyperplane_orbits == 0 {None} else {Some(faceting_settings.max_hyperplane_orbits)},
+                            if faceting_settings.do_skew_rank {Some(faceting_settings.skew_rank)} else {None},
                             faceting_settings.compounds,
+                            faceting_settings.compound_elements,
                             faceting_settings.mark_fissary,
                             faceting_settings.label_facets,
                             faceting_settings.save,
                             faceting_settings.save_facets,
                             faceting_settings.save_to_file,
                             faceting_settings.file_path.clone(),
+                            faceting_settings.r,
+                            faceting_settings.exotic,
+                            faceting_settings.exotic_elements,
+                            faceting_settings.uniform
                         );
                         for faceting in facetings {
                             memory.push(faceting);

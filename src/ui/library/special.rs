@@ -34,6 +34,9 @@ pub enum SpecialLibrary {
     /// A (4D uniform) antiprismatic prism.
     AntiprismPrism(usize, usize),
 
+    /// A 4D duotegum based on two regular polygons.
+    Duotegum(usize, usize, usize, usize),
+
     /// A simplex.
     Simplex(isize),
 
@@ -53,6 +56,7 @@ impl SpecialLibrary {
             Self::Antiprism(_, _) => "Antiprism",
             Self::Duoprism(_, _, _, _) => "Duoprism",
             Self::AntiprismPrism(_, _) => "Antiprism prism",
+            Self::Duotegum(_, _, _, _) => "Duotegum",
             Self::Simplex(_) => "Simplex",
             Self::Hypercube(_) => "Hypercube",
             Self::Orthoplex(_) => "Orthoplex",
@@ -122,7 +126,7 @@ impl SpecialLibrary {
             }
 
             // A uniform duoprism based on two polygons.
-            Self::Duoprism(n1, d1, n2, d2) => {
+            Self::Duoprism(n1, d1, n2, d2) | Self::Duotegum(n1, d1, n2, d2) => {
                 let clicked = ui.horizontal_wrapped(|ui| {
                     let clicked = ui.button(text).clicked();
 
@@ -168,7 +172,7 @@ impl SpecialLibrary {
                     let clicked = ui.button(text).clicked();
 
                     ui.label("Rank:");
-                    ui.add(egui::DragValue::new(rank).speed(0.03).clamp_range(-1..=20));
+                    ui.add(egui::DragValue::new(rank).speed(0.03).clamp_range(-1..=isize::MAX));
 
                     clicked
                 });
@@ -244,6 +248,28 @@ impl SpecialLibrary {
                     "{}{}-gonal antiprism prism",
                     n,
                     if d > 1 {format!("/{}", d)} else {"".to_string()}
+                )
+            ),
+
+            // Loads a polygonal duotegum.
+            Self::Duotegum(n1, d1, n2, d2) => (
+                {
+                    let p1 = Concrete::star_polygon_with_edge(n1, d1, 1.0);
+
+                    // Avoids duplicate work if possible.
+                    if n1 == n2 && d1 == d2 {
+                        Concrete::duotegum(&p1, &p1)
+                    } else {
+                        let p2 = Concrete::star_polygon_with_edge(n2, d2, 1.0);
+                        Concrete::duotegum(&p1, &p2)
+                    }
+                },
+                format!(
+                    "{}{}-{}{} duotegum",
+                    n1,
+                    if d1 > 1 {format!("/{}", d1)} else {"".to_string()},
+                    n2,
+                    if d2 > 1 {format!("/{}", d2)} else {"".to_string()}
                 )
             ),
 

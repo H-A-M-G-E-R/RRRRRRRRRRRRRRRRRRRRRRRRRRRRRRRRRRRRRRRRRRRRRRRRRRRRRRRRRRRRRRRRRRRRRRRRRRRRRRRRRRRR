@@ -396,7 +396,7 @@ fn faceting_subdim(
 
         for tuple in tuple_orbits {
             'a: for new_vertex in tuple[tuple.len()-1]..points.len() {
-                if now.elapsed().as_millis() > DELAY {
+                if now.elapsed().as_millis() > DELAY && print_faceting_count {
                     print!("{}{} {}-plane orbits, verts {:?}", CL, new_tuple_orbits.len(), number-1, tuple);
                     std::io::stdout().flush().unwrap();
                     now = Instant::now();
@@ -435,7 +435,10 @@ fn faceting_subdim(
                 checked.insert(new_tuple);
             }
         }
-        print!("{}{} {}-plane orbit{}", CL, new_tuple_orbits.len(), number-1, if new_tuple_orbits.len() == 1 {""} else {"s"});
+        if print_faceting_count {
+            print!("{}{} {}-plane orbit{}", CL, new_tuple_orbits.len(), number-1, if new_tuple_orbits.len() == 1 {""} else {"s"});
+            std::io::stdout().flush().unwrap();
+        }
         tuple_orbits = new_tuple_orbits.iter().map(|x| x.clone()).collect();
     }
     
@@ -773,7 +776,7 @@ fn faceting_subdim(
                     ridge_counts.push(count);
                     orbit_idx += 1;
                     
-                    if now.elapsed().as_millis() > DELAY {
+                    if now.elapsed().as_millis() > DELAY && print_faceting_count {
                         print!("{}{}/{} hp, {} ridges", CL, hp_i + 1, hyperplane_orbits.len(), ridge_orbits.len());
                         std::io::stdout().flush().unwrap();
                         now = Instant::now();
@@ -784,8 +787,10 @@ fn faceting_subdim(
         }
         ridge_idx_orbits.push(r_i_o_row);
 
-        print!("{}{}/{} hp, {} ridges", CL, hp_i, hyperplane_orbits.len(), ridge_orbits.len());
-        std::io::stdout().flush().unwrap();
+        if print_faceting_count {
+            print!("{}{}/{} hp, {} ridges", CL, hp_i, hyperplane_orbits.len(), ridge_orbits.len());
+            std::io::stdout().flush().unwrap();
+        }
     }
 
     let mut f_counts = Vec::new();

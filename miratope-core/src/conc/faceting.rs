@@ -1106,7 +1106,10 @@ fn faceting_subdim(
                                 vertices: new_vertices,
                                 abs: abs.clone(),
                             };
-                            poly.recenter();
+
+                            if let Some(cs) = poly.circumsphere() {
+                                poly.recenter_with(&cs.center);
+                            }
                             
                             let amount = poly.element_types()[1].len();
                             
@@ -1117,7 +1120,16 @@ fn faceting_subdim(
                                 poly.element_sort();
                                 let components = poly.defiss();
                                 let mut isogonal = true;
-                                for component in components {
+                                for mut component in components {
+
+                                    // All isogonals must have a circumsphere.
+                                    if let Some(cs) = component.circumsphere() {
+                                        component.recenter_with(&cs.center);
+                                    } else {
+                                        isogonal = false;
+                                        break;
+                                    }
+
                                     if component.element_types()[1].len() > 1 {
                                         isogonal = false;
                                         break;

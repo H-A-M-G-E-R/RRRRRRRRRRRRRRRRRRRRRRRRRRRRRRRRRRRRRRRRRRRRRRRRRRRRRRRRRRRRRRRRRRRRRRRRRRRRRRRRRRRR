@@ -10,15 +10,26 @@ use super::{
     PointWidget,
     wiki::{WikiArticle, LinkType, InfoboxField}, right_panel::ElementTypesRes,
 };
-use crate::{Concrete, Float, Hypersphere, Point, ui::main_window::PolyName};
+use crate::{Concrete, Float, Hypersphere, Point, ui::{main_window::PolyName, wiki::WikiElement}};
 
-use miratope_core::{conc::ConcretePolytope, Polytope};
+use egui::TextEdit;
+use miratope_core::{conc::{ConcretePolytope, element_types::EL_NAMES}, Polytope, abs::Ranked};
 
 use bevy::prelude::*;
 use bevy_egui::{
-    egui::{self, CtxRef, Layout, Ui, Widget},
+    egui::{self, Button, CtxRef, Layout, Ui, Widget},
     EguiContext,
 };
+
+// https://users.rust-lang.org/t/nice-floating-point-number-formatting/13213/6
+fn n_decimals(value: f64, digits: usize) -> String {
+    format!("{:.*}",
+        if value.abs() < 5e-11 {0}
+        else if value.abs() >= 1. {digits}
+        else {min(10, digits + -value.abs().log10().floor() as usize - 1)},
+        value
+    )
+}
 
 /// The text on the loaded polytope slot.
 const LOADED_LABEL: &str = "(Loaded polytope)";
@@ -57,8 +68,9 @@ impl Plugin for WindowPlugin {
             .add_plugin(TruncateWindow::plugin())
             .add_plugin(ScaleWindow::plugin())
             .add_plugin(FacetingSettings::plugin())
-			.add_plugin(RotateWindow::plugin())
-			.add_plugin(PlaneWindow::plugin());
+            .add_plugin(RotateWindow::plugin())
+            .add_plugin(PlaneWindow::plugin())
+            .add_plugin(WikiWindow::plugin());
     }
 }
 

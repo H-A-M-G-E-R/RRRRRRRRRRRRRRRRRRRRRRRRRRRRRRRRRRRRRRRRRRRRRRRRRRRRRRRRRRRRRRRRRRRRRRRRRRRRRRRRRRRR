@@ -1585,6 +1585,12 @@ impl Concrete {
                                     continue;
                                 }
                             }
+                            
+                            if let Some(k_v_o) = kept_vertex_orbit {
+                                if orbit_of_vertex[new_vertex] != k_v_o {
+                                    continue;
+                                }
+                            }
 
                             let mut new_tuple = tuple.clone();
                             new_tuple.push(new_vertex);

@@ -245,7 +245,11 @@ pub fn show_right_panel(
                                         match poly.element_fig(r, i) {
                                             Ok(Some(mut figure)) => {
                                                 figure.flatten();
-                                                figure.recenter();
+                                                if let Some(sphere) = figure.circumsphere() {
+                                                    figure.recenter_with(&sphere.center);
+                                                } else {
+                                                    figure.recenter();
+                                                }
                                                 *p = figure;
                                                 poly_name.0 = format!("{} figure of {}",
                                                 if r >= EL_NAMES_SINGULAR.len() {"".to_string()}

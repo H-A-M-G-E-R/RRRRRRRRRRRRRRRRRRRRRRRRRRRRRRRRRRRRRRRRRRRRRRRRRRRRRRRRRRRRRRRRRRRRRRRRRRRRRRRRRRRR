@@ -6,7 +6,7 @@ pub mod faceting;
 pub mod symmetry;
 
 use std::{
-    collections::{HashMap, HashSet, BTreeMap},
+    collections::{HashMap, HashSet, BTreeMap, BTreeSet},
     ops::{Index, IndexMut},
     iter::{self, FromIterator},
 };
@@ -1432,7 +1432,7 @@ impl ConcretePolytope for Concrete {
         let vertices_ord: BTreeMap<PointOrd<f64>, usize> = BTreeMap::from_iter(vertex_thing.0.0.iter().map(|v| PointOrd::new(v.clone())).zip(0..));
 
         // (nodes selected, (verts of els of this type, start idx))
-        let mut el_orbits: HashMap<Vec<usize>, (Vec<Vec<usize>>, usize)> = HashMap::new();
+        let mut el_orbits: HashMap<Vec<usize>, (BTreeSet<Vec<usize>>, usize)> = HashMap::new();
         el_orbits.insert(vec![], ((0..vertex_thing.0.0.len()).map(|x| vec![x]).collect(), 0));
 
         // Builds a reflection matrix from a vector.
@@ -1461,7 +1461,7 @@ impl ConcretePolytope for Concrete {
             builder.push_empty();
             'a: loop {
                 // generates orbit
-                let mut orbit = (Vec::<Vec<usize>>::new(), el_idx);
+                let mut orbit = (BTreeSet::new(), el_idx);
 
                 let gen_iter = GenIter::new(
                     dim,
@@ -1476,13 +1476,11 @@ impl ConcretePolytope for Concrete {
                             el_vert_ids.push(*idx);
                         }
                     }
-                    let mut orbit_els: Vec<Vec<usize>> = Vec::new();
-                    let mut checked: HashSet<Vec<usize>> = HashSet::new();
+                    let mut orbit_els: BTreeSet<Vec<usize>> = BTreeSet::new();
                     for row in &vertex_thing.1 {
                         let mut new_vertices: Vec<usize> = el_vert_ids.iter().map(|x| row[*x]).collect();
                         new_vertices.sort_unstable();
-                        if checked.insert(new_vertices.clone()) {
-                            orbit_els.push(new_vertices);
+                        if orbit_els.insert(new_vertices.clone()) {
                             el_idx += 1;
                         }
                     }

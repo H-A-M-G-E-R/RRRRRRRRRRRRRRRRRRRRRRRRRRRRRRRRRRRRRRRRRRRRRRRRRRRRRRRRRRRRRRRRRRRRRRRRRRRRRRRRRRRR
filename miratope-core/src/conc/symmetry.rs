@@ -207,8 +207,8 @@ impl Concrete {
 pub struct Vertices(pub Vec<Point<f64>>);
 
 impl Vertices {
-    /// Uses the provided symmetry group on the vertices, also outputs the new vertex map.
-    pub fn copy_by_symmetry(&self, group: Group<vec::IntoIter<Matrix<f64>>>) -> (Self, Vec<Vec<usize>>) {
+    /// Uses the provided symmetry group on the vertices.
+    pub fn copy_by_symmetry(&self, group: Group<vec::IntoIter<Matrix<f64>>>) -> Self {
         let mut vertices = BTreeMap::<PointOrd<f64>, usize>::new();
         let mut vertices_vec = Vec::new();
         let mut c = 0;
@@ -225,6 +225,17 @@ impl Vertices {
                 }
             }
         }
+        Vertices(Vec::from_iter(vertices_vec.into_iter().map(|point| point.0)))
+    }
+
+    /// Fills in the vertex map.
+    /// A vertex map is an array of (group element, vertex index) with values being the index of the vertex after applying the transformation.
+    pub fn get_vertex_map(&mut self, group: Group<vec::IntoIter<Matrix<f64>>>) -> Vec<Vec<usize>> {
+        let mut vertices_vec = Vec::<PointOrd<f64>>::new();
+        for v in &self.0 {
+            vertices_vec.push(PointOrd::new(v.clone()));
+        }
+        let vertices = BTreeMap::from_iter(vertices_vec.iter().zip(0..));
 
         let mut vertex_map: Vec<Vec<usize>> = Vec::new();
 
@@ -243,10 +254,6 @@ impl Vertices {
             }
             vertex_map.push(vertex_map_row);
         }
-        
-        (
-            Vertices(Vec::from_iter(vertices_vec.into_iter().map(|point| point.0))),
-            vertex_map,
-        )
+        vertex_map
     }
 }

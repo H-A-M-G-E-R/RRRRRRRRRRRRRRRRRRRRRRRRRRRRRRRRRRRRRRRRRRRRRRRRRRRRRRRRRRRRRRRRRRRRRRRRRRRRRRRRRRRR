@@ -1428,12 +1428,12 @@ impl ConcretePolytope for Concrete {
         let group = Group::parse(diagram).unwrap().unwrap().cache();
 
         // Generates vertices.
-        let vertex_thing = Vertices(vec![cd.generator().unwrap()]).copy_by_symmetry(group);
-        let vertices_ord: BTreeMap<PointOrd<f64>, usize> = BTreeMap::from_iter(vertex_thing.0.0.iter().map(|v| PointOrd::new(v.clone())).zip(0..));
+        let vertex_thing = Vertices(vec![cd.generator().unwrap()]).copy_by_symmetry(group.clone());
+        let vertices_ord: BTreeMap<PointOrd<f64>, usize> = BTreeMap::from_iter(vertex_thing.0.iter().map(|v| PointOrd::new(v.clone())).zip(0..));
 
         // (nodes selected, (verts of els of this type, start idx))
         let mut el_orbits: HashMap<Vec<usize>, (BTreeSet<Vec<usize>>, usize)> = HashMap::new();
-        el_orbits.insert(vec![], ((0..vertex_thing.0.0.len()).map(|x| vec![x]).collect(), 0));
+        el_orbits.insert(vec![], ((0..vertex_thing.0.len()).map(|x| vec![x]).collect(), 0));
 
         // Builds a reflection matrix from a vector.
         let refl_mat = |n: VectorSlice<'_, f64>| {
@@ -1452,7 +1452,7 @@ impl ConcretePolytope for Concrete {
 
         let mut builder = AbstractBuilder::new();
         builder.push_min();
-        builder.push_vertices(vertex_thing.0.0.len());
+        builder.push_vertices(vertex_thing.0.len());
 
         for d in 1..dim {
             let mut used_mirrors: Vec<usize> = (0..d).collect();
@@ -1469,16 +1469,15 @@ impl ConcretePolytope for Concrete {
                 );
                 let subgroup = unsafe { Group::new(dim, gen_iter.collect::<Vec<_>>().into_iter()) };
                 let el_verts = Vertices(vec![cd.generator().unwrap()]).copy_by_symmetry(subgroup);
-                if Subspace::from_points(el_verts.0.0.iter()).rank() == d {
-                    let mut el_vert_ids: Vec<usize> = Vec::with_capacity(el_verts.0.0.len());
-                    for vert in &el_verts.0.0 {
-                        if let Some(idx) = vertices_ord.get(&PointOrd::new(vert.clone())) {
-                            el_vert_ids.push(*idx);
-                        }
-                    }
+                if Subspace::from_points(el_verts.0.iter()).rank() == d {
                     let mut orbit_els: BTreeSet<Vec<usize>> = BTreeSet::new();
-                    for row in &vertex_thing.1 {
-                        let mut new_vertices: Vec<usize> = el_vert_ids.iter().map(|x| row[*x]).collect();
+                    for isometry in group.clone() {
+                        let mut new_vertices: Vec<usize> = Vec::with_capacity(el_verts.0.len());
+                        for vert in &el_verts.0 {
+                            if let Some(idx) = vertices_ord.get(&PointOrd::new(isometry.clone() * vert.clone())) {
+                                new_vertices.push(*idx);
+                            }
+                        }
                         new_vertices.sort_unstable();
                         if orbit_els.insert(new_vertices.clone()) {
                             el_idx += 1;
@@ -1545,7 +1544,7 @@ impl ConcretePolytope for Concrete {
         }
 
         builder.push_max();
-        unsafe { Self::new(vertex_thing.0.0.clone(),builder.build()) }
+        unsafe { Self::new(vertex_thing.0.clone(),builder.build()) }
     }
 }
 

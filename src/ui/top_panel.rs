@@ -793,18 +793,20 @@ pub fn show_top_panel(
             menu::menu(ui, "Faceting", |ui| {
                 if ui.button("Enumerate facetings").clicked() {
                     if let Some(p) = query.iter_mut().next() {
-                        let mut vertices_thing = (Vertices(vec![]), vec![]);
+                        let mut vertices_thing = Vertices(vec![]);
+                        let mut symmetry_thing = None;
                         if let GroupEnum2::FromSlot(slot) = faceting_settings.group {
-                            vertices_thing = Vertices(p.vertices.clone()).copy_by_symmetry(slot.to_poly(&mut memory, &p).unwrap().clone().get_symmetry_group().unwrap().0);
+                            symmetry_thing = Some(slot.to_poly(&mut memory, &p).unwrap().clone().get_symmetry_group().unwrap().0);
+                            vertices_thing = Vertices(p.vertices.clone()).copy_by_symmetry(symmetry_thing.clone().unwrap());
                         }
                         let facetings = p.clone().faceting(
                             match faceting_settings.group {
                                 GroupEnum2::Chiral(_) => p.vertices.clone(),
-                                GroupEnum2::FromSlot(_) => vertices_thing.0.0
+                                GroupEnum2::FromSlot(_) => vertices_thing.0.clone()
                             },
                             match faceting_settings.group {
                                 GroupEnum2::Chiral(chiral) => GroupEnum::Chiral(chiral),
-                                GroupEnum2::FromSlot(_) => GroupEnum::VertexMap(vertices_thing.1)
+                                GroupEnum2::FromSlot(_) => GroupEnum::VertexMap(vertices_thing.get_vertex_map(symmetry_thing.unwrap()))
                             },
                             faceting_settings.any_single_edge_length,
                             if faceting_settings.do_min_edge_length {Some(faceting_settings.min_edge_length)} else {None}, 
